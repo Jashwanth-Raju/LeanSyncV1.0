@@ -1,0 +1,52 @@
+export const iconPalettes = {
+  undo: {
+    activeBg:
+      "linear-gradient(135deg, rgba(14, 165, 233, 0.95), rgba(59, 130, 246, 0.95))",
+    borderColor: "rgba(59, 130, 246, 0.6)",
+    iconColor: "#f8fafc",
+    shadow: "0 12px 28px rgba(37, 99, 235, 0.35)",
+    disabledBg: "rgba(148, 163, 184, 0.18)",
+    disabledColor: "#a1a8b5",
+  },
+  redo: {
+    activeBg:
+      "linear-gradient(135deg, rgba(236, 72, 153, 0.95), rgba(168, 85, 247, 0.95))",
+    borderColor: "rgba(168, 85, 247, 0.55)",
+    iconColor: "#fdf4ff",
+    shadow: "0 12px 28px rgba(168, 85, 247, 0.35)",
+    disabledBg: "rgba(148, 163, 184, 0.18)",
+    disabledColor: "#a1a8b5",
+  },
+  delete: {
+    activeBg:
+      "linear-gradient(135deg, rgba(248, 113, 113, 0.95), rgba(239, 68, 68, 0.95))",
+    borderColor: "rgba(239, 68, 68, 0.55)",
+    iconColor: "#fff5f5",
+    shadow: "0 12px 28px rgba(239, 68, 68, 0.35)",
+    disabledBg: "rgba(148, 163, 184, 0.18)",
+    disabledColor: "#a1a8b5",
+  },
+} as const;
+
+export type IconPalette = (typeof iconPalettes)[keyof typeof iconPalettes];
+
+export const getIconButtonStyle = (
+  palette: IconPalette,
+  isDisabled: boolean
+) => ({
+  width: 44,
+  height: 44,
+  borderRadius: "18px",
+  border: "1px solid",
+  borderColor: isDisabled ? "rgba(148, 163, 184, 0.25)" : palette.borderColor,
+  background: isDisabled ? palette.disabledBg : palette.activeBg,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: isDisabled ? "not-allowed" : "pointer",
+  boxShadow: isDisabled ? "none" : palette.shadow,
+  color: isDisabled ? palette.disabledColor : palette.iconColor,
+  transition: "transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease",
+  opacity: isDisabled ? 0.65 : 1,
+  backdropFilter: "blur(12px)",
+});

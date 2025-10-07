@@ -1,0 +1,113 @@
+/* ===================================
+   Global Reset & Box Sizing
+=================================== */
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background-color: #f9fafb;
+}
+
+/* ===================================
+   App Layout
+=================================== */
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===================================
+   Toolbar
+=================================== */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid #e5e5e5;
+  background: #fafafa;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.toolbar button,
+.palette button {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.toolbar button:hover,
+.palette button:hover {
+  background: #f5f5f5;
+}
+
+/* ===================================
+   Content Layout
+=================================== */
+.content {
+  flex: 1;
+  display: flex;
+  min-height: 0; /* important for ReactFlow or Konva sizing */
+}
+
+/* ===================================
+   Palette
+=================================== */
+.palette {
+  width: 220px;
+  border-right: 1px solid #eee;
+  padding: 12px;
+  background: #fff;
+  overflow-y: auto;
+}
+
+/* ===================================
+   Board / Canvas
+=================================== */
+.board {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ===================================
+   Help / Legend / Badge
+=================================== */
+.help {
+  font-size: 12px;
+  color: #666;
+  margin-top: 12px;
+  line-height: 1.4;
+}
+
+.legend {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #555;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: #eef2ff;
+  border: 1px solid #dbeafe;
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+/* ===================================
+   Optional: ReactFlow viewport tweak
+=================================== */
+.react-flow__viewport {
+  background-color: #f9fafb;
+}
