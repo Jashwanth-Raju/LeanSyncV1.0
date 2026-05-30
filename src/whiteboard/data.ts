@@ -393,7 +393,7 @@ export const edgeLibrary: EdgeTheme[] = [
   },
   {
     key: "signal",
-    label: "Electronic Signal",
+    label: "e-Signal",
     description: "Automated data updates or system-to-system triggers.",
     badge: "Digital",
     color: "#34d399",

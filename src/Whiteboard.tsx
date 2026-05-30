@@ -107,10 +107,10 @@ const withEmissionDefaults = (
 
 type ScenarioKey = "current" | "future" | "whatIf";
 
-const SCENARIO_META: Record<ScenarioKey, { label: string; subtitle: string }> = {
-  current: { label: "Current State", subtitle: "As-is operations" },
-  future: { label: "Future State", subtitle: "Design the next iteration" },
-  whatIf: { label: "What-if Lab", subtitle: "Run experiments safely" },
+const SCENARIO_META: Record<ScenarioKey, { label: string; subtitle: string; color: string }> = {
+  current: { label: "Current State", subtitle: "As-is operations", color: "#3b82f6" },
+  future: { label: "Future State", subtitle: "Design the next iteration", color: "#10b981" },
+  whatIf: { label: "What-if Lab", subtitle: "Run experiments safely", color: "#f59e0b" },
 };
 
 const SCENARIO_ORDER: ScenarioKey[] = ["current", "future", "whatIf"];
@@ -592,6 +592,26 @@ const Whiteboard: React.FC = () => {
       : null;
   }, [nodes]);
 
+  const bottleneckTaktGapLabel = useMemo(() => {
+    if (!bottleneckNodeId) return null;
+    const node = nodes.find((n) => n.id === bottleneckNodeId);
+    if (!node) return null;
+    const cycleMin = parseDurationToMinutes(node.data.cycleTime);
+    if (cycleMin === null) return null;
+    // prefer the node's own takt time; fall back to the average across all nodes
+    let takt = parseDurationToMinutes(node.data.taktTime ?? null);
+    if (takt === null) {
+      let sum = 0, count = 0;
+      nodes.forEach((n) => {
+        const t = parseDurationToMinutes(n.data.taktTime ?? null);
+        if (t !== null) { sum += t; count++; }
+      });
+      takt = count > 0 ? sum / count : null;
+    }
+    if (takt === null || cycleMin <= takt) return null;
+    return `+${formatMinutes(cycleMin - takt)} over takt`;
+  }, [nodes, bottleneckNodeId]);
+
   const co2Context = useMemo(() => {
     const map = new Map<string, ReturnType<typeof computeNodeCO2>>();
     let maxNodeValue = 0;
@@ -776,8 +796,15 @@ const Whiteboard: React.FC = () => {
                 </div>
               )}
               {isBottleneck && (
-                <div style={{ fontSize: 9, color: "#fca5a5", fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", marginTop: 2 }}>
-                  ⚠ Bottleneck
+                <div style={{ marginTop: 3 }}>
+                  <div style={{ fontSize: 9, color: "#fca5a5", fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase" }}>
+                    ⚠ Bottleneck
+                  </div>
+                  {bottleneckTaktGapLabel && (
+                    <div style={{ fontSize: 9, color: "#fbbf24", fontWeight: 700, letterSpacing: 0.2, marginTop: 1 }}>
+                      {bottleneckTaktGapLabel}
+                    </div>
+                  )}
                 </div>
               )}
               {showCO2Layer && co2Metric && (
@@ -808,7 +835,7 @@ const Whiteboard: React.FC = () => {
         );
       },
     }),
-    [openSustainabilityNodeId, showCO2Layer, co2Context, bottleneckNodeId]
+    [openSustainabilityNodeId, showCO2Layer, co2Context, bottleneckNodeId, bottleneckTaktGapLabel]
   );
 
   const scenarioMeta = SCENARIO_META[activeScenario];
@@ -1829,9 +1856,8 @@ const Whiteboard: React.FC = () => {
           gap: 16,
           height: TAB_BAR_HEIGHT,
           padding: "0 24px",
-          borderBottom: "1px solid rgba(148, 163, 184, 0.25)",
-          background: "linear-gradient(90deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.85))",
-          backdropFilter: "blur(14px)",
+          borderBottom: `2px solid ${scenarioMeta.color}`,
+          background: "linear-gradient(90deg, #0f172a, #1e293b)",
           zIndex: 8,
         }}
       >
@@ -1847,17 +1873,15 @@ const Whiteboard: React.FC = () => {
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 10,
-              padding: "10px 18px",
+              gap: 8,
+              padding: "8px 16px",
               borderRadius: 999,
-              background:
-                "linear-gradient(135deg, rgba(129, 140, 248, 0.3), rgba(14, 165, 233, 0.35))",
-              border: "1px solid rgba(129, 140, 248, 0.45)",
-              boxShadow: "0 12px 24px rgba(14, 165, 233, 0.25)",
-              textTransform: "uppercase",
-              letterSpacing: 0.6,
-              fontWeight: 600,
-              fontSize: 13,
+              background: "rgba(99, 102, 241, 0.2)",
+              border: "1px solid rgba(99, 102, 241, 0.45)",
+              boxShadow: "0 0 12px rgba(99, 102, 241, 0.2)",
+              fontWeight: 700,
+              fontSize: 14,
+              color: "#e0e7ff",
             }}
           >
             <span
@@ -1865,12 +1889,11 @@ const Whiteboard: React.FC = () => {
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: 10,
-                height: 10,
+                width: 8,
+                height: 8,
                 borderRadius: "50%",
-                background:
-                  "radial-gradient(circle at 30% 30%, rgba(129, 140, 248, 0.85), rgba(14, 165, 233, 0.4))",
-                boxShadow: "0 0 12px rgba(129, 140, 248, 0.6)",
+                background: "#3b82f6",
+                boxShadow: "0 0 6px rgba(59, 130, 246, 0.6)",
               }}
             ></span>
             <span>LeanSync</span>
@@ -1878,8 +1901,9 @@ const Whiteboard: React.FC = () => {
           <span
             style={{
               fontSize: 12,
-              color: "rgba(226, 232, 240, 0.75)",
-              letterSpacing: 0.4,
+              color: scenarioMeta.color,
+              fontWeight: 600,
+              letterSpacing: 0.2,
             }}
           >
             {scenarioMeta.subtitle}
@@ -1887,12 +1911,12 @@ const Whiteboard: React.FC = () => {
         <div
           style={{
             display: "inline-flex",
-            padding: 4,
+            padding: 3,
             marginLeft: 6,
             borderRadius: 999,
-            background: "rgba(148, 163, 184, 0.12)",
-            border: "1px solid rgba(148, 163, 184, 0.25)",
-            gap: 6,
+            background: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            gap: 4,
           }}
         >
           {SCENARIO_ORDER.map((key) => {
@@ -1916,20 +1940,17 @@ const Whiteboard: React.FC = () => {
                     : `${SCENARIO_META[key].label} — Shift+Click to clone current map`
                 }
                 style={{
-                  padding: "8px 14px",
+                  padding: "7px 14px",
                   borderRadius: 999,
                   border: "none",
                   cursor: "pointer",
-                  background: isActiveScenario
-                    ? "linear-gradient(135deg, rgba(148, 163, 184, 0.35), rgba(94, 234, 212, 0.35))"
-                    : "transparent",
-                  color: isActiveScenario ? "#0f172a" : "#e2e8f0",
-                  fontSize: 11,
-                  letterSpacing: 0.5,
-                  textTransform: "uppercase",
+                  background: isActiveScenario ? meta.color : "transparent",
+                  color: isActiveScenario ? "#ffffff" : meta.color,
+                  fontSize: 12,
+                  letterSpacing: 0.2,
                   fontWeight: 600,
                   boxShadow: isActiveScenario
-                    ? "0 8px 18px rgba(45, 212, 191, 0.24)"
+                    ? `0 4px 12px ${meta.color}50`
                     : "none",
                   transition: "all 0.2s ease",
                 }}
@@ -1954,12 +1975,11 @@ const Whiteboard: React.FC = () => {
             style={{
               padding: "6px 12px",
               borderRadius: 999,
-              border: "1px solid rgba(148, 163, 184, 0.25)",
-              background: "rgba(15, 23, 42, 0.4)",
-              color: "#e2e8f0",
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.08)",
+              color: "#94a3b8",
               fontSize: 11,
-              letterSpacing: 0.5,
-              textTransform: "uppercase",
+              fontWeight: 500,
               cursor: "pointer",
             }}
           >
@@ -1972,12 +1992,11 @@ const Whiteboard: React.FC = () => {
               style={{
                 padding: "6px 12px",
                 borderRadius: 999,
-                border: "1px solid rgba(148, 163, 184, 0.25)",
-                background: "rgba(15, 23, 42, 0.4)",
-                color: "#e2e8f0",
+                border: "1px solid #e2e8f0",
+                background: "#f8fafc",
+                color: "#64748b",
                 fontSize: 11,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
+                fontWeight: 500,
                 cursor: "pointer",
               }}
             >
@@ -1991,16 +2010,14 @@ const Whiteboard: React.FC = () => {
             type="button"
             onClick={() => setQuickFillOpen(true)}
             style={{
-              padding: "8px 16px",
+              padding: "7px 14px",
               borderRadius: 999,
-              border: "1px solid rgba(99, 102, 241, 0.45)",
-              background: "linear-gradient(135deg, rgba(99,102,241,0.25), rgba(14,165,233,0.2))",
+              border: "1px solid rgba(99,102,241,0.4)",
+              background: "rgba(99,102,241,0.18)",
               color: "#c7d2fe",
               fontSize: 12,
               fontWeight: 600,
-              letterSpacing: 0.4,
               cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(99,102,241,0.2)",
             }}
           >
             Quick Fill
@@ -2009,16 +2026,14 @@ const Whiteboard: React.FC = () => {
             type="button"
             onClick={() => void handleExportMap()}
             style={{
-              padding: "8px 16px",
+              padding: "7px 14px",
               borderRadius: 999,
-              border: "1px solid rgba(34, 197, 94, 0.4)",
-              background: "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(16,185,129,0.15))",
-              color: "#86efac",
+              border: "1px solid rgba(16,185,129,0.35)",
+              background: "rgba(16,185,129,0.15)",
+              color: "#6ee7b7",
               fontSize: 12,
               fontWeight: 600,
-              letterSpacing: 0.4,
               cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(34,197,94,0.15)",
             }}
           >
             Export PDF
@@ -2026,11 +2041,11 @@ const Whiteboard: React.FC = () => {
           <div
             style={{
               display: "inline-flex",
-              padding: 4,
+              padding: 3,
               borderRadius: 999,
-              background: "rgba(30, 41, 59, 0.65)",
-              border: "1px solid rgba(148, 163, 184, 0.25)",
-              gap: 6,
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              gap: 4,
             }}
           >
             {[{ key: "canvas", label: "Canvas" }, { key: "insights", label: "Insights" }].map(
@@ -2047,19 +2062,15 @@ const Whiteboard: React.FC = () => {
                       }
                     }}
                     style={{
-                      padding: "8px 16px",
+                      padding: "7px 16px",
                       borderRadius: 999,
                       border: "none",
                       cursor: "pointer",
                       fontSize: 12,
-                      letterSpacing: 0.6,
-                      textTransform: "uppercase",
-                      background: isActive
-                        ? "linear-gradient(135deg, rgba(129, 140, 248, 0.55), rgba(14, 165, 233, 0.5))"
-                        : "transparent",
-                      color: isActive ? "#0f172a" : "#cbd5f5",
+                      background: isActive ? "#6366f1" : "transparent",
+                      color: isActive ? "#ffffff" : "#94a3b8",
                       fontWeight: 600,
-                      boxShadow: isActive ? "0 10px 22px rgba(14, 165, 233, 0.3)" : "none",
+                      boxShadow: isActive ? "0 4px 10px rgba(99,102,241,0.3)" : "none",
                       transition: "all 0.2s ease",
                     }}
                   >
@@ -2076,12 +2087,10 @@ const Whiteboard: React.FC = () => {
               style={{
                 padding: "6px 12px",
                 borderRadius: 999,
-                border: "1px solid rgba(148, 163, 184, 0.25)",
-                background: "rgba(15, 23, 42, 0.4)",
-                color: "#e2e8f0",
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.08)",
+                color: "#94a3b8",
                 fontSize: 12,
-                letterSpacing: 0.6,
-                textTransform: "uppercase",
                 cursor: "pointer",
               }}
             >

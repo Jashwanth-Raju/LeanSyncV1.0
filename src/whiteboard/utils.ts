@@ -107,9 +107,7 @@ export const decorateEdge = (
     ...edge,
     type: "smoothstep",
     animated: Boolean(theme.animated),
-    label: `${theme.iconGlyph ?? ""}${theme.iconGlyph ? " " : ""}${
-      theme.label ?? theme.badge ?? "Connection"
-    }`,
+    label: theme.label ?? theme.badge ?? "Connection",
     style: {
       stroke: theme.color,
       strokeWidth: theme.width ?? 2,
@@ -119,21 +117,20 @@ export const decorateEdge = (
     markerEnd: {
       type: markerType,
       color: theme.markerColor ?? theme.color,
-      width: (theme.width ?? 2) * 1.15,
-      height: (theme.width ?? 2) * 1.15,
+      width: (theme.width ?? 2) * 5,
+      height: (theme.width ?? 2) * 5,
     },
-    labelBgPadding: [6, 12],
-    labelBgBorderRadius: 999,
+    labelBgPadding: [3, 8],
+    labelBgBorderRadius: 4,
     labelBgStyle: {
-      fill: "rgba(255,255,255,0.85)",
+      fill: "#f1f5f9",
       stroke: "transparent",
-      filter: "drop-shadow(0 10px 20px rgba(15,23,42,0.18))",
     },
     labelStyle: {
-      fill: "#1e293b",
-      fontSize: 12,
-      fontWeight: 600,
-      letterSpacing: 0.5,
+      fill: theme.color,
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: 0.3,
     },
   };
 };
