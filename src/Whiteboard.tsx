@@ -49,7 +49,6 @@ import {
   parseNumericValue,
 } from "./whiteboard/utils";
 import type {
-  DashboardCard,
   HistorySnapshot,
   LibraryCategory,
   LibraryNode,
@@ -72,231 +71,20 @@ import { exportToPdf } from "./whiteboard/utils/exportPdf";
 import { db } from "./firebase";
 import { useProject } from "./lib/ProjectContext";
 
-const withEmissionDefaults = (
-  data: WhiteboardNodeData,
-  defaults: EmissionFactorDefaults | null,
-  trackingEnabled: boolean
-): WhiteboardNodeData => {
-  if (!trackingEnabled || !defaults) return data;
-  const sustainability = { ...(data.sustainability ?? {}) };
-
-  const applyDefault = (
-    key: keyof NonNullable<WhiteboardNodeData["sustainability"]>,
-    value: string
-  ) => {
-    const current = sustainability[key];
-    if (!value) return;
-    if (!current || String(current).trim().length === 0) {
-      sustainability[key] = value;
-    }
-  };
-
-  applyDefault("electricityFactor", defaults.electricity);
-  applyDefault("materialFactor", defaults.materials);
-  applyDefault("transportFactor", defaults.transport);
-
-  return {
-    ...data,
-    sustainability,
-  };
-};
-
-type ScenarioKey = "current" | "future" | "whatIf";
-
-const SCENARIO_META: Record<ScenarioKey, { label: string; subtitle: string; color: string }> = {
-  current: { label: "Current State", subtitle: "As-is operations", color: "#3b82f6" },
-  future: { label: "Future State", subtitle: "Design the next iteration", color: "#10b981" },
-  whatIf: { label: "What-if Lab", subtitle: "Run experiments safely", color: "#f59e0b" },
-};
-
-const SCENARIO_ORDER: ScenarioKey[] = ["current", "future", "whatIf"];
-
-const computeDashboardMetrics = (
-  nodes: Node<WhiteboardNodeData>[]
-) => {
-  const totals = {
-    totalSteps: nodes.length,
-    valueAddedSteps: 0,
-    enablerSteps: 0,
-    nonValueAddedSteps: 0,
-    processMinutes: 0,
-    processCount: 0,
-    cycleMinutes: 0,
-    cycleCount: 0,
-    leadMinutes: 0,
-    leadCount: 0,
-    setupMinutes: 0,
-    setupCount: 0,
-    taktMinutes: 0,
-    taktCount: 0,
-    valueAddedMinutes: 0,
-    nonValueAddedMinutes: 0,
-    delayMinutes: 0,
-  };
-
-  nodes.forEach((node) => {
-    const variant = node.data.valueType ?? "enabler";
-    if (variant === "value-added") totals.valueAddedSteps += 1;
-    else if (variant === "non-value-added") totals.nonValueAddedSteps += 1;
-    else totals.enablerSteps += 1;
-
-    const process = parseDurationToMinutes(node.data.processTime);
-    const cycle = parseDurationToMinutes(node.data.cycleTime);
-    const lead = parseDurationToMinutes(node.data.leadTime);
-    const setup = parseDurationToMinutes(node.data.setupTime);
-    const takt = parseDurationToMinutes(node.data.taktTime);
-
-    if (process !== null) {
-      totals.processMinutes += process;
-      totals.processCount += 1;
-      if (variant === "value-added") totals.valueAddedMinutes += process;
-      else totals.nonValueAddedMinutes += process;
-    }
-    if (cycle !== null) {
-      totals.cycleMinutes += cycle;
-      totals.cycleCount += 1;
-    }
-    if (lead !== null) {
-      totals.leadMinutes += lead;
-      totals.leadCount += 1;
-    }
-    if (setup !== null) {
-      totals.setupMinutes += setup;
-      totals.setupCount += 1;
-    }
-    if (takt !== null) {
-      totals.taktMinutes += takt;
-      totals.taktCount += 1;
-    }
-  });
-
-  const averageLead = totals.leadCount
-    ? totals.leadMinutes / totals.leadCount
-    : null;
-  const averageCycle = totals.cycleCount
-    ? totals.cycleMinutes / totals.cycleCount
-    : null;
-  const averageTakt = totals.taktCount
-    ? totals.taktMinutes / totals.taktCount
-    : null;
-  const taktGap =
-    averageCycle !== null && averageTakt !== null
-      ? averageCycle - averageTakt
-      : null;
-  const setupAverage = totals.setupCount
-    ? totals.setupMinutes / totals.setupCount
-    : null;
-  const valueAddedRatio = totals.processMinutes
-    ? (totals.valueAddedMinutes / totals.processMinutes) * 100
-    : null;
-
-  const cards: DashboardCard[] = [
-    {
-      title: "Steps",
-      primary: `${totals.totalSteps}`,
-      accent: `${totals.valueAddedSteps} value-add`,
-      footer: `${totals.enablerSteps} enabler · ${totals.nonValueAddedSteps} non-value`,
-    },
-    {
-      title: "Lead Time",
-      primary: formatMinutes(averageLead),
-      accent: `Process ${formatMinutes(totals.processMinutes)}`,
-      footer: `Cycle ${formatMinutes(totals.cycleMinutes)}`,
-    },
-    {
-      title: "Value Mix",
-      primary: valueAddedRatio ? `${valueAddedRatio.toFixed(1)}% VA` : "--",
-      accent: `${formatMinutes(totals.valueAddedMinutes)} value-add`,
-      footer: `${formatMinutes(totals.nonValueAddedMinutes)} non-value`,
-    },
-    {
-      title: "Cycle vs Takt",
-      primary: averageCycle ? formatMinutes(averageCycle) : "--",
-      accent: averageTakt ? `Takt ${formatMinutes(averageTakt)}` : undefined,
-      footer:
-        averageCycle && averageTakt && taktGap !== null
-          ? `${taktGap > 0 ? "+" : ""}${formatMinutes(Math.abs(taktGap))} ${
-              taktGap > 0 ? "over" : taktGap < 0 ? "under" : "on"
-            } takt`
-          : undefined,
-    },
-    {
-      title: "Setup & Delay",
-      primary: formatMinutes(totals.delayMinutes),
-      accent: totals.delayMinutes ? "Wait / queue" : undefined,
-      footer: setupAverage ? `Avg setup ${formatMinutes(setupAverage)}` : undefined,
-    },
-  ];
-
-  return { totals, cards };
-};
-
-const getHistory = () => ({ past: [], future: [] }) as HistorySnapshotStore;
-
-type HistorySnapshotStore = {
-  past: HistorySnapshot[];
-  future: HistorySnapshot[];
-};
-
-type SavedWhiteboardState = {
-  activeScenario?: ScenarioKey;
-  scenarios?: Partial<Record<ScenarioKey, { nodes: Node<WhiteboardNodeData>[]; edges: Edge<WhiteboardEdgeData>[] }>>;
-  co2PromptAck?: Partial<Record<ScenarioKey, boolean>>;
-  dashboardVisible?: boolean;
-  showCO2Layer?: boolean;
-  emissionDefaults?: EmissionFactorDefaults;
-  isCo2TrackingEnabled?: boolean;
-};
-
-type SaveStatus = "saved" | "saving" | "error";
-
-const stripUndefined = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
-
-const withDefaultCurrentBoard = (
-  nodes: Node<WhiteboardNodeData>[] | undefined,
-  edges: Edge<WhiteboardEdgeData>[] | undefined
-) => ({
-  nodes: nodes && nodes.length > 0 ? nodes.map(cloneNode) : initialNodes.map(cloneNode),
-  edges: nodes && nodes.length > 0 ? (edges ?? []).map(cloneEdge) : initialEdges.map(cloneEdge),
-});
-
-const toPersistedNodes = (nodes: Node<WhiteboardNodeData>[]) =>
-  nodes.map((node) => ({
-    id: node.id,
-    type: node.type,
-    position: node.position,
-    data: node.data,
-  })) as Node<WhiteboardNodeData>[];
-
-const toPersistedEdges = (edges: Edge<WhiteboardEdgeData>[]) =>
-  edges.map((edge) => ({
-    id: edge.id,
-    type: edge.type,
-    source: edge.source,
-    target: edge.target,
-    sourceHandle: edge.sourceHandle,
-    targetHandle: edge.targetHandle,
-    data: edge.data,
-    label: edge.label,
-  })) as Edge<WhiteboardEdgeData>[];
-
-const toPersistedScenarios = (
-  scenarios: Record<ScenarioKey, { nodes: Node<WhiteboardNodeData>[]; edges: Edge<WhiteboardEdgeData>[] }>
-) =>
-  stripUndefined({
-    current: {
-      nodes: toPersistedNodes(scenarios.current.nodes),
-      edges: toPersistedEdges(scenarios.current.edges),
-    },
-    future: {
-      nodes: toPersistedNodes(scenarios.future.nodes),
-      edges: toPersistedEdges(scenarios.future.edges),
-    },
-    whatIf: {
-      nodes: toPersistedNodes(scenarios.whatIf.nodes),
-      edges: toPersistedEdges(scenarios.whatIf.edges),
-    },
-  });
+import {
+  computeDashboardMetrics,
+  getHistory,
+  SCENARIO_META,
+  SCENARIO_ORDER,
+} from "./whiteboard/scenarios";
+import type { ScenarioKey, HistorySnapshotStore, SaveStatus } from "./whiteboard/scenarios";
+import {
+  withEmissionDefaults,
+  withDefaultCurrentBoard,
+  toPersistedScenarios,
+  stripUndefined,
+} from "./whiteboard/persistence";
+import type { SavedWhiteboardState } from "./whiteboard/persistence";
 
 const Whiteboard: React.FC = () => {
   const { selectedProjectId } = useProject();
