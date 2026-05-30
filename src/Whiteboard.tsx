@@ -72,6 +72,7 @@ import type { NodeProps } from "reactflow";
 import { co2ColorScale, computeNodeCO2, parseCO2Numeric } from "./whiteboard/utils/co2";
 import { EmissionWizard, type EmissionWizardStage } from "./whiteboard/components/EmissionWizard";
 import { QuickFillModal } from "./whiteboard/components/QuickFillModal";
+import { exportToPdf } from "./whiteboard/utils/exportPdf";
 import { db } from "./firebase";
 import { useProject } from "./lib/ProjectContext";
 
@@ -1695,9 +1696,36 @@ const Whiteboard: React.FC = () => {
     [setNodes]
   );
 
-  const handleExportMap = useCallback(() => {
-    console.log("Export map action triggered");
-  }, []);
+  const handleExportMap = useCallback(async () => {
+    if (!reactFlowWrapperRef.current) return;
+
+    const wasOnInsights = activeTab === "insights";
+    if (wasOnInsights) {
+      setActiveTab("canvas");
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      );
+    }
+
+    const bottleneckNode = bottleneckNodeId
+      ? nodes.find((n) => n.id === bottleneckNodeId)
+      : null;
+
+    try {
+      await exportToPdf({
+        canvasElement: reactFlowWrapperRef.current!,
+        scenarioLabel: SCENARIO_META[activeScenario].label,
+        dashboardCards,
+        bottleneckLabel: bottleneckNode?.data.label ?? null,
+      });
+    } catch (err) {
+      console.error("PDF export failed", err);
+    }
+
+    if (wasOnInsights) {
+      setActiveTab("insights");
+    }
+  }, [reactFlowWrapperRef, activeTab, activeScenario, dashboardCards, bottleneckNodeId, nodes]);
 
   const handleImportMap = useCallback(() => {
     console.log("Import map action triggered");
@@ -1976,6 +2004,24 @@ const Whiteboard: React.FC = () => {
             }}
           >
             Quick Fill
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleExportMap()}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 999,
+              border: "1px solid rgba(34, 197, 94, 0.4)",
+              background: "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(16,185,129,0.15))",
+              color: "#86efac",
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: 0.4,
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(34,197,94,0.15)",
+            }}
+          >
+            Export PDF
           </button>
           <div
             style={{
