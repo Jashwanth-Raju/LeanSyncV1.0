@@ -13,9 +13,7 @@ import ReactFlow, {
   Background,
   ConnectionLineType,
   Controls,
-  Handle,
   MiniMap,
-  Position,
   useEdgesState,
   useNodesState,
 } from "reactflow";
@@ -41,7 +39,6 @@ import {
   TAB_BAR_HEIGHT,
   CANVAS_TOP_OFFSET,
   nodeMetaFields,
-  iconMap,
 } from "./whiteboard/data";
 import {
   cloneEdge,
@@ -66,9 +63,8 @@ import { DashboardOverlay } from "./whiteboard/components/DashboardOverlay";
 import { InspectorPanel } from "./whiteboard/components/InspectorPanel";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { AnalyticsPanel } from "./whiteboard/components/AnalyticsPanel";
-import { SustainabilityBadge } from "./whiteboard/components/SustainabilityBadge";
-import { SustainabilityPopup } from "./whiteboard/components/SustainabilityPopup";
 import type { NodeProps } from "reactflow";
+import { CustomNode } from "./whiteboard/components/CustomNode";
 import { co2ColorScale, computeNodeCO2, parseCO2Numeric } from "./whiteboard/utils/co2";
 import { EmissionWizard, type EmissionWizardStage } from "./whiteboard/components/EmissionWizard";
 import { QuickFillModal } from "./whiteboard/components/QuickFillModal";
@@ -719,121 +715,17 @@ const Whiteboard: React.FC = () => {
 
   const nodeTypes = useMemo(
     () => ({
-      custom: (props: NodeProps<WhiteboardNodeData>) => {
-        const { data, id } = props;
-        const isPopupOpen = openSustainabilityNodeId === id;
-        const isBottleneck = id === bottleneckNodeId;
-        const a = parseFloat(data.oeeAvailability ?? "");
-        const p = parseFloat(data.oeePerformance ?? "");
-        const q = parseFloat(data.oeeQuality ?? "");
-        const oeeValue =
-          !isNaN(a) && !isNaN(p) && !isNaN(q)
-            ? ((a / 100) * (p / 100) * (q / 100) * 100).toFixed(1)
-            : null;
-        const co2Metric = showCO2Layer ? co2Context.map.get(id) : null;
-        const heatColor = co2Metric
-          ? co2ColorScale(co2Metric.absoluteValue, co2Context.maxNodeValue || 1)
-          : data.color;
-        const backgroundGradient = showCO2Layer
-          ? `linear-gradient(135deg, ${heatColor}40, ${heatColor})`
-          : `linear-gradient(135deg, ${data.color}88, ${data.color})`;
-        const textColor = showCO2Layer ? "#0f172a" : "#ffffff";
-        const secondaryColor = showCO2Layer
-          ? "rgba(15, 23, 42, 0.7)"
-          : "rgba(255,255,255,0.85)";
-        return (
-          <div
-            style={{
-              position: "relative",
-              pointerEvents: "all",
-              padding: 12,
-              display: "flex",
-              alignItems: "center",
-              background: backgroundGradient,
-              borderRadius: 12,
-              color: textColor,
-              minWidth: 140,
-              justifyContent: "flex-start",
-              fontWeight: 600,
-              boxShadow: isBottleneck
-                ? "0 0 0 3px #ef4444, 0 0 24px rgba(239,68,68,0.55)"
-                : showCO2Layer
-                ? `0 12px 22px ${heatColor}55`
-                : "0 8px 16px rgba(0,0,0,0.18)",
-              cursor: "pointer",
-              border: isBottleneck
-                ? "2px solid #ef4444"
-                : showCO2Layer
-                ? `1px solid ${heatColor}`
-                : "none",
-              transition: "all 0.25s ease",
-              textShadow: showCO2Layer ? "none" : "0 1px 2px rgba(15, 23, 42, 0.35)",
-            }}
-          >
-            {/* Targets on all sides to allow inbound links from any direction */}
-            <Handle type="target" position={Position.Top} id="t" style={{ background: "#555" }} />
-            <Handle type="target" position={Position.Bottom} id="b" style={{ background: "#555" }} />
-            <Handle type="target" position={Position.Left} id="l" style={{ background: "#555" }} />
-            <Handle type="target" position={Position.Right} id="r" style={{ background: "#555" }} />
-            <div style={{ width: 28, marginRight: 10, color: textColor }}>
-              {iconMap[data.icon]}
-            </div>
-            <div style={{ lineHeight: 1.2 }}>
-              <div>{data.label}</div>
-              {data.processTime && (
-                <div style={{ fontSize: 10, color: secondaryColor, fontWeight: 500 }}>
-                  PT: {data.processTime}
-                </div>
-              )}
-              {data.cycleTime && (
-                <div style={{ fontSize: 10, color: secondaryColor, fontWeight: 500 }}>
-                  CT: {data.cycleTime}
-                </div>
-              )}
-              {oeeValue && (
-                <div style={{ fontSize: 10, color: "#fbbf24", fontWeight: 700 }}>
-                  OEE: {oeeValue}%
-                </div>
-              )}
-              {isBottleneck && (
-                <div style={{ marginTop: 3 }}>
-                  <div style={{ fontSize: 9, color: "#fca5a5", fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase" }}>
-                    ⚠ Bottleneck
-                  </div>
-                  {bottleneckTaktGapLabel && (
-                    <div style={{ fontSize: 9, color: "#fbbf24", fontWeight: 700, letterSpacing: 0.2, marginTop: 1 }}>
-                      {bottleneckTaktGapLabel}
-                    </div>
-                  )}
-                </div>
-              )}
-              {showCO2Layer && co2Metric && (
-                <div style={{ fontSize: 10, color: secondaryColor, fontWeight: 600 }}>
-                  CO₂: {co2Metric.label}
-                </div>
-              )}
-            </div>
-            {/* Sources on all sides to allow outbound links in any direction */}
-            <Handle type="source" position={Position.Top} id="st" style={{ background: "#555" }} />
-            <Handle type="source" position={Position.Bottom} id="sb" style={{ background: "#555" }} />
-            <Handle type="source" position={Position.Left} id="sl" style={{ background: "#555" }} />
-            <Handle type="source" position={Position.Right} id="sr" style={{ background: "#555" }} />
-            <SustainabilityBadge
-              sustainability={data.sustainability}
-              onClick={(event) => {
-                event.stopPropagation();
-                setOpenSustainabilityNodeId((prev) => (prev === id ? null : id));
-              }}
-            />
-            {isPopupOpen && (
-              <SustainabilityPopup
-                sustainability={data.sustainability}
-                onClose={() => setOpenSustainabilityNodeId(null)}
-              />
-            )}
-          </div>
-        );
-      },
+      custom: (props: NodeProps<WhiteboardNodeData>) => (
+        <CustomNode
+          {...props}
+          openSustainabilityNodeId={openSustainabilityNodeId}
+          bottleneckNodeId={bottleneckNodeId}
+          bottleneckTaktGapLabel={bottleneckTaktGapLabel}
+          showCO2Layer={showCO2Layer}
+          co2Context={co2Context}
+          setOpenSustainabilityNodeId={setOpenSustainabilityNodeId}
+        />
+      ),
     }),
     [openSustainabilityNodeId, showCO2Layer, co2Context, bottleneckNodeId, bottleneckTaktGapLabel]
   );
