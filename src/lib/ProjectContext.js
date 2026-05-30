@@ -1,6 +1,6 @@
 import { jsx as _jsx } from "react/jsx-runtime";
 import { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react";
-import { addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where, } from "firebase/firestore";
+import { addDoc, arrayUnion, collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where, } from "firebase/firestore";
 import { db } from "../firebase";
 const ProjectContext = createContext(undefined);
 export const ProjectProvider = ({ userId, children }) => {
@@ -165,7 +165,7 @@ export const ProjectProvider = ({ userId, children }) => {
             return;
         const invite = snap.data();
         await setDoc(doc(db, "projects", projectId, "memberships", userId), { role: invite.role ?? "editor" }, { merge: true });
-        await updateDoc(doc(db, "projects", projectId), { memberIds: invite.memberIds ? invite.memberIds.concat(userId) : [userId] });
+        await updateDoc(doc(db, "projects", projectId), { memberIds: arrayUnion(userId) });
         await deleteDoc(inviteRef);
     }, [userId]);
     const selectedProfile = useMemo(() => {
