@@ -25,3 +25,6 @@ dist-ssr
 *.sln
 *.sw?
 Leansync-Hybrid/
+
+# Compiled TypeScript outputs — edit .ts/.tsx source files instead
+src/**/*.js
