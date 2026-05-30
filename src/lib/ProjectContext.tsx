@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useMemo } 
 import type { PropsWithChildren } from "react";
 import {
   addDoc,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -244,7 +245,7 @@ export const ProjectProvider = ({ userId, children }: ProjectProviderProps) => {
       if (!snap.exists()) return;
       const invite = snap.data();
       await setDoc(doc(db, "projects", projectId, "memberships", userId), { role: invite.role ?? "editor" }, { merge: true });
-      await updateDoc(doc(db, "projects", projectId), { memberIds: invite.memberIds ? invite.memberIds.concat(userId) : [userId] });
+      await updateDoc(doc(db, "projects", projectId), { memberIds: arrayUnion(userId) });
       await deleteDoc(inviteRef);
     },
     [userId]
