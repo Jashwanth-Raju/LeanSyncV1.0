@@ -684,6 +684,13 @@ const Whiteboard: React.FC = () => {
       custom: (props: NodeProps<WhiteboardNodeData>) => {
         const { data, id } = props;
         const isPopupOpen = openSustainabilityNodeId === id;
+        const a = parseFloat(data.oeeAvailability ?? "");
+        const p = parseFloat(data.oeePerformance ?? "");
+        const q = parseFloat(data.oeeQuality ?? "");
+        const oeeValue =
+          !isNaN(a) && !isNaN(p) && !isNaN(q)
+            ? ((a / 100) * (p / 100) * (q / 100) * 100).toFixed(1)
+            : null;
         const co2Metric = showCO2Layer ? co2Context.map.get(id) : null;
         const heatColor = co2Metric
           ? co2ColorScale(co2Metric.absoluteValue, co2Context.maxNodeValue || 1)
@@ -736,6 +743,11 @@ const Whiteboard: React.FC = () => {
               {data.cycleTime && (
                 <div style={{ fontSize: 10, color: secondaryColor, fontWeight: 500 }}>
                   CT: {data.cycleTime}
+                </div>
+              )}
+              {oeeValue && (
+                <div style={{ fontSize: 10, color: "#fbbf24", fontWeight: 700 }}>
+                  OEE: {oeeValue}%
                 </div>
               )}
               {showCO2Layer && co2Metric && (

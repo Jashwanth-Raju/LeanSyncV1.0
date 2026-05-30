@@ -11,6 +11,13 @@ export type LibraryNode = {
   tagline?: string;
   category: string;
   valueType: ValueType;
+  processTime?: string;
+  cycleTime?: string;
+  taktTime?: string;
+  leadTime?: string;
+  setupTime?: string;
+  wip?: string;
+  capacity?: string;
 };
 
 export type LibraryCategory = {
@@ -28,6 +35,9 @@ export type WhiteboardNodeData = LibraryNode & {
   setupTime?: string;
   wip?: string;
   capacity?: string;
+  oeeAvailability?: string;
+  oeePerformance?: string;
+  oeeQuality?: string;
   cost?: string;
   owner?: string;
   notes?: string;
