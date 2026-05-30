@@ -3,6 +3,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import ReactFlow, { MarkerType, addEdge, Background, ConnectionLineType, Controls, Handle, MiniMap, Position, useEdgesState, useNodesState, } from "reactflow";
+import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import "reactflow/dist/style.css";
 import { nodeLibrary, edgeLibrary, edgeThemeMap, DEFAULT_EDGE_VARIANT, initialNodes, initialEdges, SIDEBAR_WIDTH, TAB_BAR_HEIGHT, CANVAS_TOP_OFFSET, nodeMetaFields, iconMap, } from "./whiteboard/data";
 import { cloneEdge, cloneNode, decorateEdge, formatMinutes, parseDurationToMinutes, parseNumericValue, } from "./whiteboard/utils";
@@ -16,6 +17,8 @@ import { SustainabilityBadge } from "./whiteboard/components/SustainabilityBadge
 import { SustainabilityPopup } from "./whiteboard/components/SustainabilityPopup";
 import { co2ColorScale, computeNodeCO2, parseCO2Numeric } from "./whiteboard/utils/co2";
 import { EmissionWizard } from "./whiteboard/components/EmissionWizard";
+import { db } from "./firebase";
+import { useProject } from "./lib/ProjectContext";
 const withEmissionDefaults = (data, defaults, trackingEnabled) => {
     if (!trackingEnabled || !defaults)
         return data;
@@ -155,13 +158,53 @@ const computeDashboardMetrics = (nodes) => {
     return { totals, cards };
 };
 const getHistory = () => ({ past: [], future: [] });
+const stripUndefined = (value) => JSON.parse(JSON.stringify(value));
+const withDefaultCurrentBoard = (nodes, edges) => ({
+    nodes: nodes && nodes.length > 0 ? nodes.map(cloneNode) : initialNodes.map(cloneNode),
+    edges: nodes && nodes.length > 0 ? (edges ?? []).map(cloneEdge) : initialEdges.map(cloneEdge),
+});
+const toPersistedNodes = (nodes) => nodes.map((node) => ({
+    id: node.id,
+    type: node.type,
+    position: node.position,
+    data: node.data,
+}));
+const toPersistedEdges = (edges) => edges.map((edge) => ({
+    id: edge.id,
+    type: edge.type,
+    source: edge.source,
+    target: edge.target,
+    sourceHandle: edge.sourceHandle,
+    targetHandle: edge.targetHandle,
+    data: edge.data,
+    label: edge.label,
+}));
+const toPersistedScenarios = (scenarios) => stripUndefined({
+    current: {
+        nodes: toPersistedNodes(scenarios.current.nodes),
+        edges: toPersistedEdges(scenarios.current.edges),
+    },
+    future: {
+        nodes: toPersistedNodes(scenarios.future.nodes),
+        edges: toPersistedEdges(scenarios.future.edges),
+    },
+    whatIf: {
+        nodes: toPersistedNodes(scenarios.whatIf.nodes),
+        edges: toPersistedEdges(scenarios.whatIf.edges),
+    },
+});
 const Whiteboard = () => {
+    const { selectedProjectId } = useProject();
     const [nodes, setNodes, rfOnNodesChange] = useNodesState(initialNodes.map(cloneNode));
     const [edges, setEdges, rfOnEdgesChange] = useEdgesState(initialEdges.map(cloneEdge));
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [activeTab, setActiveTab] = useState("canvas");
+    const [toolbarVisible, setToolbarVisible] = useState(true);
+    const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
     const [activeScenario, setActiveScenario] = useState("current");
     const [dashboardVisible, setDashboardVisible] = useState(true);
+    const [saveStatus, setSaveStatus] = useState("saved");
+    const [lastSavedAt, setLastSavedAt] = useState(null);
     const [openSustainabilityNodeId, setOpenSustainabilityNodeId] = useState(null);
     const [showCO2Layer, setShowCO2Layer] = useState(false);
     const [emissionDefaults, setEmissionDefaults] = useState({
@@ -205,6 +248,72 @@ const Whiteboard = () => {
     });
     const isApplyingRef = useRef(false);
     const isSwitchingScenarioRef = useRef(false);
+    const isRemoteHydratingRef = useRef(false);
+    const hasLoadedProjectRef = useRef(false);
+    const lastPersistedStateRef = useRef(null);
+    const saveTimerRef = useRef(null);
+    const pendingSaveRef = useRef(null);
+    const toolbarHideTimeoutRef = useRef(null);
+    const bumpToolbarVisibility = useCallback(() => {
+        if (toolbarCollapsed)
+            return;
+        setToolbarVisible(true);
+        if (toolbarHideTimeoutRef.current) {
+            window.clearTimeout(toolbarHideTimeoutRef.current);
+        }
+        toolbarHideTimeoutRef.current = window.setTimeout(() => {
+            setToolbarVisible(false);
+        }, 2500);
+    }, [toolbarCollapsed]);
+    const hideToolbar = useCallback(() => {
+        if (toolbarHideTimeoutRef.current) {
+            window.clearTimeout(toolbarHideTimeoutRef.current);
+        }
+        setToolbarCollapsed(true);
+        setToolbarVisible(false);
+    }, []);
+    const showToolbar = useCallback(() => {
+        setToolbarCollapsed(false);
+        bumpToolbarVisibility();
+    }, [bumpToolbarVisibility]);
+    const commitPendingSave = useCallback(async () => {
+        const pending = pendingSaveRef.current;
+        if (!pending) {
+            setSaveStatus("saved");
+            return;
+        }
+        if (saveTimerRef.current) {
+            window.clearTimeout(saveTimerRef.current);
+            saveTimerRef.current = null;
+        }
+        setSaveStatus("saving");
+        try {
+            await setDoc(doc(db, "projects", pending.selectedProjectId), {
+                nodes: pending.nodes,
+                edges: pending.edges,
+                vsmState: pending.vsmState,
+                updatedAt: serverTimestamp(),
+            }, { merge: true });
+            lastPersistedStateRef.current = pending.serializedState;
+            if (pendingSaveRef.current?.serializedState === pending.serializedState) {
+                pendingSaveRef.current = null;
+            }
+            setLastSavedAt(new Date());
+            setSaveStatus("saved");
+        }
+        catch (error) {
+            console.error("Failed to save whiteboard", error);
+            setSaveStatus("error");
+        }
+    }, []);
+    useEffect(() => {
+        bumpToolbarVisibility();
+        return () => {
+            if (toolbarHideTimeoutRef.current) {
+                window.clearTimeout(toolbarHideTimeoutRef.current);
+            }
+        };
+    }, [bumpToolbarVisibility]);
     const applyScenarioState = useCallback((key, state) => {
         scenarioStoreRef.current[key] = {
             nodes: state.nodes.map(cloneNode),
@@ -222,6 +331,96 @@ const Whiteboard = () => {
             });
         }
     }, [activeScenario, setNodes, setEdges]);
+    useEffect(() => {
+        if (!selectedProjectId) {
+            hasLoadedProjectRef.current = false;
+            return;
+        }
+        hasLoadedProjectRef.current = false;
+        const projectRef = doc(db, "projects", selectedProjectId);
+        const unsubscribe = onSnapshot(projectRef, (snapshot) => {
+            const data = snapshot.data();
+            const saved = data?.vsmState;
+            const savedScenarios = saved?.scenarios;
+            setSaveStatus("saved");
+            if (saved)
+                setLastSavedAt(new Date());
+            if (saved) {
+                const serializedSaved = JSON.stringify(saved);
+                if (serializedSaved === lastPersistedStateRef.current) {
+                    hasLoadedProjectRef.current = true;
+                    return;
+                }
+                lastPersistedStateRef.current = serializedSaved;
+            }
+            isRemoteHydratingRef.current = true;
+            if (savedScenarios) {
+                const currentState = withDefaultCurrentBoard(savedScenarios.current?.nodes, savedScenarios.current?.edges);
+                const nextScenarios = {
+                    current: currentState,
+                    future: {
+                        nodes: (savedScenarios.future?.nodes ?? []).map(cloneNode),
+                        edges: (savedScenarios.future?.edges ?? []).map(cloneEdge),
+                    },
+                    whatIf: {
+                        nodes: (savedScenarios.whatIf?.nodes ?? []).map(cloneNode),
+                        edges: (savedScenarios.whatIf?.edges ?? []).map(cloneEdge),
+                    },
+                };
+                const savedActiveScenario = saved?.activeScenario ?? "current";
+                const nextActiveScenario = nextScenarios[savedActiveScenario].nodes.length > 0 ? savedActiveScenario : "current";
+                scenarioStoreRef.current = nextScenarios;
+                scenarioHistoryRef.current = {
+                    current: getHistory(),
+                    future: getHistory(),
+                    whatIf: getHistory(),
+                };
+                co2PromptAckRef.current = {
+                    current: Boolean(saved.co2PromptAck?.current),
+                    future: Boolean(saved.co2PromptAck?.future),
+                    whatIf: Boolean(saved.co2PromptAck?.whatIf),
+                };
+                setDashboardVisible(saved.dashboardVisible ?? true);
+                setShowCO2Layer(saved.showCO2Layer ?? false);
+                setEmissionDefaults(saved.emissionDefaults ?? { electricity: "", materials: "", transport: "" });
+                setIsCo2TrackingEnabled(saved.isCo2TrackingEnabled ?? false);
+                setActiveScenario(nextActiveScenario);
+                setNodes(nextScenarios[nextActiveScenario].nodes.map(cloneNode));
+                setEdges(nextScenarios[nextActiveScenario].edges.map(cloneEdge));
+            }
+            else {
+                const legacyNodes = data?.nodes;
+                const legacyEdges = data?.edges;
+                const currentState = withDefaultCurrentBoard(legacyNodes, legacyEdges);
+                scenarioStoreRef.current = {
+                    current: currentState,
+                    future: { nodes: [], edges: [] },
+                    whatIf: { nodes: [], edges: [] },
+                };
+                setActiveScenario("current");
+                setNodes(currentState.nodes.map(cloneNode));
+                setEdges(currentState.edges.map(cloneEdge));
+            }
+            setActiveEdgeId(null);
+            setActiveNodeId(null);
+            setOpenSustainabilityNodeId(null);
+            hasLoadedProjectRef.current = true;
+            requestAnimationFrame(() => {
+                isRemoteHydratingRef.current = false;
+            });
+        }, (error) => {
+            console.error("Failed to load saved whiteboard", error);
+            hasLoadedProjectRef.current = true;
+            isRemoteHydratingRef.current = false;
+        });
+        return () => {
+            unsubscribe();
+            if (saveTimerRef.current) {
+                window.clearTimeout(saveTimerRef.current);
+                saveTimerRef.current = null;
+            }
+        };
+    }, [selectedProjectId, setNodes, setEdges]);
     const { cards: dashboardCards, totals } = useMemo(() => computeDashboardMetrics(nodes), [nodes]);
     const co2Context = useMemo(() => {
         const map = new Map();
@@ -345,7 +544,7 @@ const Whiteboard = () => {
                     border: showCO2Layer ? `1px solid ${heatColor}` : "none",
                     transition: "all 0.25s ease",
                     textShadow: showCO2Layer ? "none" : "0 1px 2px rgba(15, 23, 42, 0.35)",
-                }, children: [_jsx(Handle, { type: "target", position: Position.Top, style: { background: "#555" } }), _jsx("div", { style: { width: 28, marginRight: 10, color: textColor }, children: iconMap[data.icon] }), _jsxs("div", { style: { lineHeight: 1.2 }, children: [_jsx("div", { children: data.label }), data.processTime && (_jsxs("div", { style: { fontSize: 10, color: secondaryColor, fontWeight: 500 }, children: ["PT: ", data.processTime] })), data.cycleTime && (_jsxs("div", { style: { fontSize: 10, color: secondaryColor, fontWeight: 500 }, children: ["CT: ", data.cycleTime] })), showCO2Layer && co2Metric && (_jsxs("div", { style: { fontSize: 10, color: secondaryColor, fontWeight: 600 }, children: ["CO\u2082: ", co2Metric.label] }))] }), _jsx(Handle, { type: "source", position: Position.Bottom, style: { background: "#555" } }), _jsx(SustainabilityBadge, { sustainability: data.sustainability, onClick: (event) => {
+                }, children: [_jsx(Handle, { type: "target", position: Position.Top, id: "t", style: { background: "#555" } }), _jsx(Handle, { type: "target", position: Position.Bottom, id: "b", style: { background: "#555" } }), _jsx(Handle, { type: "target", position: Position.Left, id: "l", style: { background: "#555" } }), _jsx(Handle, { type: "target", position: Position.Right, id: "r", style: { background: "#555" } }), _jsx("div", { style: { width: 28, marginRight: 10, color: textColor }, children: iconMap[data.icon] }), _jsxs("div", { style: { lineHeight: 1.2 }, children: [_jsx("div", { children: data.label }), data.processTime && (_jsxs("div", { style: { fontSize: 10, color: secondaryColor, fontWeight: 500 }, children: ["PT: ", data.processTime] })), data.cycleTime && (_jsxs("div", { style: { fontSize: 10, color: secondaryColor, fontWeight: 500 }, children: ["CT: ", data.cycleTime] })), showCO2Layer && co2Metric && (_jsxs("div", { style: { fontSize: 10, color: secondaryColor, fontWeight: 600 }, children: ["CO\u2082: ", co2Metric.label] }))] }), _jsx(Handle, { type: "source", position: Position.Top, id: "st", style: { background: "#555" } }), _jsx(Handle, { type: "source", position: Position.Bottom, id: "sb", style: { background: "#555" } }), _jsx(Handle, { type: "source", position: Position.Left, id: "sl", style: { background: "#555" } }), _jsx(Handle, { type: "source", position: Position.Right, id: "sr", style: { background: "#555" } }), _jsx(SustainabilityBadge, { sustainability: data.sustainability, onClick: (event) => {
                             event.stopPropagation();
                             setOpenSustainabilityNodeId((prev) => (prev === id ? null : id));
                         } }), isPopupOpen && (_jsx(SustainabilityPopup, { sustainability: data.sustainability, onClose: () => setOpenSustainabilityNodeId(null) }))] }));
@@ -353,7 +552,7 @@ const Whiteboard = () => {
     }), [openSustainabilityNodeId, showCO2Layer, co2Context]);
     const scenarioMeta = SCENARIO_META[activeScenario];
     useEffect(() => {
-        if (isSwitchingScenarioRef.current || isApplyingRef.current)
+        if (isSwitchingScenarioRef.current || isApplyingRef.current || isRemoteHydratingRef.current)
             return;
         scenarioStoreRef.current[activeScenario] = {
             ...scenarioStoreRef.current[activeScenario],
@@ -361,7 +560,7 @@ const Whiteboard = () => {
         };
     }, [nodes, activeScenario]);
     useEffect(() => {
-        if (isSwitchingScenarioRef.current || isApplyingRef.current)
+        if (isSwitchingScenarioRef.current || isApplyingRef.current || isRemoteHydratingRef.current)
             return;
         scenarioStoreRef.current[activeScenario] = {
             ...scenarioStoreRef.current[activeScenario],
@@ -369,6 +568,8 @@ const Whiteboard = () => {
         };
     }, [edges, activeScenario]);
     useEffect(() => {
+        if (isRemoteHydratingRef.current)
+            return;
         const scenarioState = scenarioStoreRef.current[activeScenario];
         if (!scenarioState)
             return;
@@ -382,6 +583,76 @@ const Whiteboard = () => {
             isSwitchingScenarioRef.current = false;
         });
     }, [activeScenario, setNodes, setEdges]);
+    useEffect(() => {
+        if (!selectedProjectId || !hasLoadedProjectRef.current || isRemoteHydratingRef.current)
+            return;
+        const scenarios = {
+            ...scenarioStoreRef.current,
+            [activeScenario]: {
+                nodes: nodes.map(cloneNode),
+                edges: edges.map(cloneEdge),
+            },
+        };
+        const persistedScenarios = toPersistedScenarios(scenarios);
+        const vsmState = stripUndefined({
+            activeScenario,
+            scenarios: persistedScenarios,
+            co2PromptAck: co2PromptAckRef.current,
+            dashboardVisible,
+            showCO2Layer,
+            emissionDefaults,
+            isCo2TrackingEnabled,
+        });
+        const serializedState = JSON.stringify(vsmState);
+        if (serializedState === lastPersistedStateRef.current) {
+            if (!pendingSaveRef.current)
+                setSaveStatus("saved");
+            return;
+        }
+        pendingSaveRef.current = {
+            selectedProjectId,
+            nodes: persistedScenarios.current.nodes,
+            edges: persistedScenarios.current.edges,
+            vsmState,
+            serializedState,
+        };
+        setSaveStatus("saving");
+        if (saveTimerRef.current) {
+            window.clearTimeout(saveTimerRef.current);
+        }
+        saveTimerRef.current = window.setTimeout(() => {
+            void commitPendingSave();
+        }, 250);
+    }, [
+        selectedProjectId,
+        nodes,
+        edges,
+        activeScenario,
+        dashboardVisible,
+        showCO2Layer,
+        emissionDefaults,
+        isCo2TrackingEnabled,
+        commitPendingSave,
+    ]);
+    useEffect(() => {
+        const flushPendingSave = () => {
+            const pending = pendingSaveRef.current;
+            if (!pending)
+                return;
+            void commitPendingSave();
+        };
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "hidden") {
+                flushPendingSave();
+            }
+        };
+        window.addEventListener("beforeunload", flushPendingSave);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return () => {
+            window.removeEventListener("beforeunload", flushPendingSave);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [commitPendingSave]);
     const activeEdge = useMemo(() => edges.find((edge) => edge.id === activeEdgeId) ?? null, [edges, activeEdgeId]);
     const activeNode = useMemo(() => nodes.find((node) => node.id === activeNodeId) ?? null, [nodes, activeNodeId]);
     const categoryFilters = useMemo(() => ["All", ...nodeLibrary.map((cat) => cat.category)], []);
@@ -718,6 +989,9 @@ const Whiteboard = () => {
         return alerts;
     }, [nodes, edges, totals]);
     const activeHistory = scenarioHistoryRef.current[activeScenario];
+    useEffect(() => {
+        bumpToolbarVisibility();
+    }, [activeHistory.past.length, activeHistory.future.length, bumpToolbarVisibility]);
     const cloneScenario = useCallback((from, to) => {
         if (from === to)
             return;
@@ -928,6 +1202,7 @@ const Whiteboard = () => {
         event.dataTransfer.effectAllowed = "move";
     }, []);
     const handleSelectionChange = useCallback((params) => {
+        bumpToolbarVisibility();
         const selectedEdge = params.edges[0];
         const selectedNode = params.nodes[0];
         if (selectedEdge) {
@@ -940,7 +1215,7 @@ const Whiteboard = () => {
         setActiveNodeId(selectedNode ? selectedNode.id : null);
         if (!selectedNode)
             setOpenSustainabilityNodeId(null);
-    }, []);
+    }, [bumpToolbarVisibility, setActiveEdgeId, setActiveNodeId, setOpenSustainabilityNodeId]);
     const onDrop = useCallback((event) => {
         event.preventDefault();
         const reactFlowBounds = reactFlowWrapperRef.current?.getBoundingClientRect();
@@ -986,6 +1261,15 @@ const Whiteboard = () => {
     }, []);
     useEffect(() => {
         const handleKeyDown = (e) => {
+            const target = e.target;
+            if (target &&
+                (target.tagName === "INPUT" ||
+                    target.tagName === "TEXTAREA" ||
+                    target.isContentEditable ||
+                    target.type === "number")) {
+                return;
+            }
+            bumpToolbarVisibility();
             if (e.key === "Delete" || e.key === "Backspace") {
                 deleteSelected();
             }
@@ -1003,11 +1287,38 @@ const Whiteboard = () => {
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [deleteSelected, undo, redo]);
+    }, [deleteSelected, undo, redo, bumpToolbarVisibility]);
     const inspectorOpen = Boolean(activeEdge || activeNode);
     const inspectorWidth = 320;
     const overlayPadding = 24;
     const overlayTop = CANVAS_TOP_OFFSET;
+    const savedLabel = lastSavedAt
+        ? `All changes saved at ${lastSavedAt.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+        })}`
+        : "All changes saved";
+    const saveStatusConfig = {
+        saved: {
+            label: savedLabel,
+            color: "#bbf7d0",
+            background: "rgba(22, 101, 52, 0.78)",
+            border: "rgba(34, 197, 94, 0.55)",
+        },
+        saving: {
+            label: "Saving...",
+            color: "#fef3c7",
+            background: "rgba(120, 53, 15, 0.78)",
+            border: "rgba(251, 191, 36, 0.6)",
+        },
+        error: {
+            label: "Save failed",
+            color: "#fee2e2",
+            background: "rgba(127, 29, 29, 0.82)",
+            border: "rgba(248, 113, 113, 0.7)",
+        },
+    }[saveStatus];
     const libraryMaxHeight = `calc(100% - ${overlayTop + 60}px)`;
     const inspectorMaxHeight = `calc(100% - ${overlayTop + 48}px)`;
     const dashboardLeftOffset = sidebarOpen
@@ -1173,13 +1484,28 @@ const Whiteboard = () => {
                                     letterSpacing: 0.6,
                                     textTransform: "uppercase",
                                     cursor: "pointer",
-                                }, children: dashboardVisible ? "Hide Dashboards" : "Show Dashboards" }))] })] }), _jsx("div", { ref: reactFlowWrapperRef, style: { position: "relative", flex: 1 }, children: activeTab === "canvas" ? (_jsxs(_Fragment, { children: [_jsxs(ReactFlow, { nodes: nodes, edges: decoratedEdges, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, nodeTypes: nodeTypes, onDrop: onDrop, onDragOver: onDragOver, onInit: setReactFlowInstance, onSelectionChange: handleSelectionChange, onEdgeClick: (_, edge) => {
+                                }, children: dashboardVisible ? "Hide Dashboards" : "Show Dashboards" }))] })] }), _jsx("div", { ref: reactFlowWrapperRef, onMouseMove: bumpToolbarVisibility, onTouchStart: bumpToolbarVisibility, style: { position: "relative", flex: 1 }, children: activeTab === "canvas" ? (_jsxs(_Fragment, { children: [_jsxs(ReactFlow, { nodes: nodes, edges: decoratedEdges, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, nodeTypes: nodeTypes, onDrop: onDrop, onDragOver: onDragOver, onInit: setReactFlowInstance, onSelectionChange: handleSelectionChange, onEdgeClick: (_, edge) => {
                                 setActiveEdgeId(edge.id);
                                 setActiveNodeId(null);
                             }, fitView: true, snapToGrid: true, snapGrid: [20, 20], connectionLineType: ConnectionLineType.SmoothStep, defaultEdgeOptions: {
                                 markerEnd: { type: MarkerType.ArrowClosed },
                                 type: "smoothstep",
-                            }, proOptions: { hideAttribution: true }, style: { width: "100%", height: "100%" }, children: [_jsx(Background, {}), _jsx(MiniMap, {}), _jsx(Controls, {})] }), _jsxs("button", { type: "button", onClick: () => setShowCO2Layer((value) => !value), style: {
+                            }, proOptions: { hideAttribution: true }, style: { width: "100%", height: "100%" }, children: [_jsx(Background, {}), _jsx(MiniMap, {}), _jsx(Controls, {})] }), (toolbarCollapsed || !toolbarVisible) && (_jsx("button", { type: "button", onClick: showToolbar, style: {
+                                position: "absolute",
+                                top: overlayTop - 8,
+                                right: overlayPadding,
+                                padding: "8px 12px",
+                                borderRadius: 999,
+                                border: "1px solid rgba(148, 163, 184, 0.25)",
+                                background: "rgba(15, 23, 42, 0.6)",
+                                color: "#e2e8f0",
+                                fontSize: 12,
+                                letterSpacing: 0.4,
+                                cursor: "pointer",
+                                boxShadow: "0 12px 24px rgba(15, 23, 42, 0.28)",
+                                backdropFilter: "blur(12px)",
+                                zIndex: 23,
+                            }, children: "Show tools" })), _jsxs("button", { type: "button", onClick: () => setShowCO2Layer((value) => !value), style: {
                                 position: "absolute",
                                 top: overlayTop - 12,
                                 right: toolbarRight,
@@ -1213,7 +1539,49 @@ const Whiteboard = () => {
                                         boxShadow: showCO2Layer
                                             ? "0 0 10px rgba(239, 68, 68, 0.6)"
                                             : "0 0 10px rgba(34, 197, 94, 0.6)",
-                                    } }), showCO2Layer ? "CO₂ Layer On" : "CO₂ Layer Off"] }), sidebarOpen && (_jsx(NodeLibraryPanel, { top: overlayTop, offset: overlayPadding, width: SIDEBAR_WIDTH, maxHeight: libraryMaxHeight, searchTerm: searchTerm, onSearchChange: setSearchTerm, filters: categoryFilters, activeFilter: categoryFilter, onFilterSelect: (filter) => {
+                                    } }), showCO2Layer ? "CO₂ Layer On" : "CO₂ Layer Off"] }), _jsxs("div", { "aria-live": "polite", style: {
+                                position: "absolute",
+                                right: overlayPadding,
+                                bottom: 24,
+                                zIndex: 24,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 8,
+                                minWidth: 210,
+                                justifyContent: "space-between",
+                                padding: "8px 10px 8px 12px",
+                                borderRadius: 999,
+                                border: `1px solid ${saveStatusConfig.border}`,
+                                background: saveStatusConfig.background,
+                                color: saveStatusConfig.color,
+                                fontSize: 12,
+                                fontWeight: 700,
+                                letterSpacing: 0.4,
+                                textTransform: "uppercase",
+                                boxShadow: "0 14px 30px rgba(15, 23, 42, 0.28)",
+                                backdropFilter: "blur(12px)",
+                            }, children: [_jsxs("span", { style: { display: "inline-flex", alignItems: "center", gap: 8 }, children: [_jsx("span", { style: {
+                                                width: 8,
+                                                height: 8,
+                                                flex: "0 0 auto",
+                                                borderRadius: "50%",
+                                                background: saveStatusConfig.color,
+                                                boxShadow: `0 0 10px ${saveStatusConfig.color}`,
+                                            } }), saveStatusConfig.label] }), _jsx("button", { type: "button", onClick: () => {
+                                        void commitPendingSave();
+                                    }, style: {
+                                        marginLeft: 4,
+                                        padding: "5px 9px",
+                                        borderRadius: 999,
+                                        border: "1px solid rgba(255, 255, 255, 0.28)",
+                                        background: "rgba(255, 255, 255, 0.12)",
+                                        color: "inherit",
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        letterSpacing: 0.3,
+                                        textTransform: "uppercase",
+                                        cursor: "pointer",
+                                    }, children: "Save now" })] }), sidebarOpen && (_jsx(NodeLibraryPanel, { top: overlayTop, offset: overlayPadding, width: SIDEBAR_WIDTH, maxHeight: libraryMaxHeight, searchTerm: searchTerm, onSearchChange: setSearchTerm, filters: categoryFilters, activeFilter: categoryFilter, onFilterSelect: (filter) => {
                                 setCategoryFilter(filter);
                                 if (filter === "All") {
                                     setDrawerCategory(null);
@@ -1238,7 +1606,7 @@ const Whiteboard = () => {
                                 cursor: "pointer",
                                 transition: "all 0.25s ease",
                                 zIndex: 16,
-                            }, children: sidebarOpen ? _jsx(FaChevronLeft, {}) : _jsx(FaChevronRight, {}) }), _jsx(ToolbarPanel, { top: overlayTop, right: overlayPadding, visible: true, canUndo: activeHistory.past.length > 0, canRedo: activeHistory.future.length > 0, onUndo: undo, onRedo: redo, onDelete: deleteSelected }), dashboardVisible && (_jsx(DashboardOverlay, { top: overlayTop, left: dashboardLeftOffset, right: dashboardRightOffset, cards: dashboardCards })), inspectorOpen && (_jsx(InspectorPanel, { top: overlayTop, right: overlayPadding, width: inspectorWidth, maxHeight: inspectorMaxHeight, activeNode: activeNode, activeEdge: activeEdge, onClose: () => {
+                            }, children: sidebarOpen ? _jsx(FaChevronLeft, {}) : _jsx(FaChevronRight, {}) }), _jsx(ToolbarPanel, { top: overlayTop, right: overlayPadding, visible: !toolbarCollapsed && toolbarVisible, canUndo: activeHistory.past.length > 0, canRedo: activeHistory.future.length > 0, onUndo: undo, onRedo: redo, onDelete: deleteSelected, onHide: hideToolbar }), dashboardVisible && (_jsx(DashboardOverlay, { top: overlayTop, left: dashboardLeftOffset, right: dashboardRightOffset, cards: dashboardCards })), inspectorOpen && (_jsx(InspectorPanel, { top: overlayTop, right: overlayPadding, width: inspectorWidth, maxHeight: inspectorMaxHeight, activeNode: activeNode, activeEdge: activeEdge, onClose: () => {
                                 setActiveEdgeId(null);
                                 setActiveNodeId(null);
                             }, onMetaChange: handleNodeMetaChange, onSustainabilityChange: handleSustainabilityChange, edgeThemes: edgeLibrary, onVariantSelect: handleEdgeVariantSelect, defaultVariant: DEFAULT_EDGE_VARIANT, metaFields: nodeMetaFields }))] })) : (_jsx(AnalyticsPanel, { cards: dashboardCards, valueBreakdown: valueBreakdown, timeMetrics: timeMetrics, cycleTimeTrend: cycleTimeTrend, wipCapacity: wipCapacitySnapshot, costBreakdown: costBreakdown, sustainabilityDashboard: sustainabilityDashboard, categoryBreakdown: categoryBreakdown, summary: summaryInsights, alerts: insightAlerts, onExportMap: handleExportMap, onImportMap: handleImportMap, onExportDashboards: handleExportDashboards })) }), _jsx(EmissionWizard, { open: emissionWizardOpen, stage: emissionWizardStage, defaults: emissionDefaults, onAcceptTracking: handleEmissionWizardAccept, onSkip: handleEmissionWizardSkip, onSubmit: handleEmissionWizardSubmit, onClose: handleEmissionWizardClose })] }));

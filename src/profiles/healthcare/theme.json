@@ -1,0 +1,14 @@
+{
+  "name": "Healthcare",
+  "primary": "#EC4899",
+  "secondary": "#8B5CF6",
+  "background": "#170F1F",
+  "nodeDefaultColor": "#8B5CF6",
+  "toolbarGradient": ["rgba(236, 72, 153, 0.95)", "rgba(139, 92, 246, 0.9)"],
+  "cardGradient": ["rgba(23, 15, 31, 0.92)", "rgba(39, 22, 42, 0.95)"],
+  "sidebarGlass": "linear-gradient(180deg, rgba(23,15,31,0.9), rgba(39,22,42,0.95))",
+  "pill": {
+    "saving": "rgba(236, 72, 153, 0.25)",
+    "saved": "rgba(139, 92, 246, 0.25)"
+  }
+}

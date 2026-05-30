@@ -1,0 +1,240 @@
+[
+  {
+    "category": "Strategic Planning",
+    "description": "Vision-to-plan cadence aligning demand, capacity, and business goals.",
+    "accent": "#6366f1",
+    "nodes": [
+      {
+        "label": "Sales & Ops Planning",
+        "icon": "planning",
+        "color": "#6366f1",
+        "badge": "Planning",
+        "tagline": "Monthly cadence",
+        "category": "Strategic Planning",
+        "valueType": "enabler"
+      },
+      {
+        "label": "Master Schedule",
+        "icon": "planning",
+        "color": "#0ea5e9",
+        "badge": "MPS",
+        "tagline": "Weekly horizon",
+        "category": "Strategic Planning",
+        "valueType": "enabler"
+      },
+      {
+        "label": "Demand Forecast",
+        "icon": "performance",
+        "color": "#14b8a6",
+        "badge": "Analytics",
+        "tagline": "Scenario mix",
+        "category": "Strategic Planning",
+        "valueType": "enabler"
+      }
+    ]
+  },
+  {
+    "category": "Procurement & Suppliers",
+    "description": "Inbound flow of materials, supplier collaboration, and assurance.",
+    "accent": "#38bdf8",
+    "nodes": [
+      {
+        "label": "Supplier Portal",
+        "icon": "digital",
+        "color": "#0ea5e9",
+        "badge": "Digital",
+        "tagline": "ASN visibility",
+        "category": "Procurement & Suppliers",
+        "valueType": "enabler"
+      },
+      {
+        "label": "Raw Material Receipt",
+        "icon": "truck",
+        "color": "#3b82f6",
+        "badge": "Inbound",
+        "tagline": "Dock-to-stock",
+        "category": "Procurement & Suppliers",
+        "valueType": "non-value-added"
+      },
+      {
+        "label": "Supplier Audit",
+        "icon": "quality",
+        "color": "#f97316",
+        "badge": "QA",
+        "tagline": "Capability review",
+        "category": "Procurement & Suppliers",
+        "valueType": "non-value-added"
+      }
+    ]
+  },
+  {
+    "category": "Production & Transformation",
+    "description": "Core value creation across fabrication, assembly, and upkeep.",
+    "accent": "#f59e0b",
+    "nodes": [
+      {
+        "label": "Fabrication Cell",
+        "icon": "manufacturing",
+        "color": "#f97316",
+        "badge": "Build",
+        "tagline": "Cycle time",
+        "category": "Production & Transformation",
+        "valueType": "value-added"
+      },
+      {
+        "label": "Assembly Line",
+        "icon": "industry",
+        "color": "#ef4444",
+        "badge": "Flow",
+        "tagline": "Takt alignment",
+        "category": "Production & Transformation",
+        "valueType": "value-added"
+      },
+      {
+        "label": "Maintenance Station",
+        "icon": "maintenance",
+        "color": "#22c55e",
+        "badge": "Uptime",
+        "tagline": "TPM checks",
+        "category": "Production & Transformation",
+        "valueType": "enabler"
+      }
+    ]
+  },
+  {
+    "category": "Quality & Compliance",
+    "description": "Assurance layers safeguarding specification and regulatory fit.",
+    "accent": "#a855f7",
+    "nodes": [
+      {
+        "label": "Quality Gate",
+        "icon": "quality",
+        "color": "#a855f7",
+        "badge": "Release",
+        "tagline": "Go/No-Go",
+        "category": "Quality & Compliance",
+        "valueType": "non-value-added"
+      },
+      {
+        "label": "Lab Testing",
+        "icon": "inspection",
+        "color": "#10b981",
+        "badge": "Validation",
+        "tagline": "Sample checks",
+        "category": "Quality & Compliance",
+        "valueType": "non-value-added"
+      },
+      {
+        "label": "Compliance Audit",
+        "icon": "support",
+        "color": "#ec4899",
+        "badge": "Audit",
+        "tagline": "Regulatory",
+        "category": "Quality & Compliance",
+        "valueType": "non-value-added"
+      }
+    ]
+  },
+  {
+    "category": "Logistics & Distribution",
+    "description": "Physical movement, staging, and fulfilment across the network.",
+    "accent": "#f97316",
+    "nodes": [
+      {
+        "label": "Warehouse Buffer",
+        "icon": "warehouse",
+        "color": "#f97316",
+        "badge": "Stock",
+        "tagline": "Days on hand",
+        "category": "Logistics & Distribution",
+        "valueType": "non-value-added"
+      },
+      {
+        "label": "Staging Zone",
+        "icon": "inventory",
+        "color": "#14b8a6",
+        "badge": "WIP",
+        "tagline": "Sequenced",
+        "category": "Logistics & Distribution",
+        "valueType": "non-value-added"
+      },
+      {
+        "label": "Outbound Shipping",
+        "icon": "shipping",
+        "color": "#0ea5e9",
+        "badge": "Delivery",
+        "tagline": "Customer",
+        "category": "Logistics & Distribution",
+        "valueType": "non-value-added"
+      }
+    ]
+  },
+  {
+    "category": "Information Flow",
+    "description": "Digital signals, system updates, and decision triggers.",
+    "accent": "#22d3ee",
+    "nodes": [
+      {
+        "label": "ERP Update",
+        "icon": "digital",
+        "color": "#38bdf8",
+        "badge": "System",
+        "tagline": "Real-time",
+        "category": "Information Flow",
+        "valueType": "enabler"
+      },
+      {
+        "label": "Andon Alert",
+        "icon": "performance",
+        "color": "#fb7185",
+        "badge": "Alert",
+        "tagline": "Issue flag",
+        "category": "Information Flow",
+        "valueType": "non-value-added"
+      },
+      {
+        "label": "Analytics Hub",
+        "icon": "performance",
+        "color": "#818cf8",
+        "badge": "Insights",
+        "tagline": "KPI pulse",
+        "category": "Information Flow",
+        "valueType": "enabler"
+      }
+    ]
+  },
+  {
+    "category": "Support & People",
+    "description": "Enablement layers keeping talent, safety, and governance in sync.",
+    "accent": "#f472b6",
+    "nodes": [
+      {
+        "label": "Leadership Huddle",
+        "icon": "support",
+        "color": "#f472b6",
+        "badge": "Daily",
+        "tagline": "Tier meetings",
+        "category": "Support & People",
+        "valueType": "non-value-added"
+      },
+      {
+        "label": "Training Session",
+        "icon": "planning",
+        "color": "#10b981",
+        "badge": "Skills",
+        "tagline": "Standard work",
+        "category": "Support & People",
+        "valueType": "enabler"
+      },
+      {
+        "label": "Safety Walk",
+        "icon": "quality",
+        "color": "#facc15",
+        "badge": "Safety",
+        "tagline": "Gemba",
+        "category": "Support & People",
+        "valueType": "non-value-added"
+      }
+    ]
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "cards": [
+    {
+      "title": "Steps",
+      "primary": { "path": "totals.totalSteps", "format": "number" },
+      "accentTemplate": "VA {{totals.valueAddedSteps}}",
+      "footerTemplate": "Enablers {{totals.enablerSteps}}"
+    },
+    {
+      "title": "Cycle",
+      "primary": { "path": "averageCycle", "format": "duration" },
+      "accentTemplate": "Lead {{averageLead}}",
+      "footerTemplate": "Takt gap {{taktGap}}"
+    }
+  ],
+  "layers": [
+    {
+      "id": "lead_time",
+      "label": "Lead Layer",
+      "color": "#60A5FA",
+      "metricPath": "totals.leadMinutes",
+      "formatter": "duration"
+    },
+    {
+      "id": "value_mix",
+      "label": "Value Mix",
+      "color": "#FBBF24",
+      "metricPath": "valueAddedRatio",
+      "formatter": "percent"
+    }
+  ]
+}

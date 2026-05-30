@@ -1,6 +1,6 @@
 /** @jsxImportSource react */
 import * as React from "react";
-import { FaUndo, FaRedo, FaTrash } from "react-icons/fa";
+import { FaUndo, FaRedo, FaTrash, FaTimes } from "react-icons/fa";
 import { iconPalettes, getIconButtonStyle } from "../styles";
 
 export type ToolbarPanelProps = {
@@ -12,6 +12,7 @@ export type ToolbarPanelProps = {
   onUndo: () => void;
   onRedo: () => void;
   onDelete: () => void;
+  onHide?: () => void;
 };
 
 export const ToolbarPanel: React.FC<ToolbarPanelProps> = ({
@@ -23,6 +24,7 @@ export const ToolbarPanel: React.FC<ToolbarPanelProps> = ({
   onUndo,
   onRedo,
   onDelete,
+  onHide,
 }) => (
   <div
     style={{
@@ -31,6 +33,7 @@ export const ToolbarPanel: React.FC<ToolbarPanelProps> = ({
       right,
       zIndex: 24,
       display: "flex",
+      alignItems: "center",
       gap: 12,
       padding: "10px 12px",
       borderRadius: 28,
@@ -70,5 +73,15 @@ export const ToolbarPanel: React.FC<ToolbarPanelProps> = ({
     >
       <FaTrash size={18} />
     </button>
+    {onHide && (
+      <button
+        aria-label="Hide toolbar"
+        title="Hide toolbar"
+        onClick={onHide}
+        style={getIconButtonStyle(iconPalettes.hide, false)}
+      >
+        <FaTimes size={14} />
+      </button>
+    )}
   </div>
 );

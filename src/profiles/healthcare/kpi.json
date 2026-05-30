@@ -1,0 +1,33 @@
+{
+  "cards": [
+    {
+      "title": "Patients In Stream",
+      "primary": { "path": "totals.totalSteps", "format": "number", "suffix": " touchpoints" },
+      "accentTemplate": "{{totals.valueAddedSteps}} clinical",
+      "footerTemplate": "{{totals.nonValueAddedSteps}} waits"
+    },
+    {
+      "title": "Care Time",
+      "primary": { "path": "totals.processMinutes", "format": "duration" },
+      "accentTemplate": "Lead {{totals.leadMinutes}}",
+      "footerTemplate": "Setup {{totals.setupMinutes}}"
+    }
+  ],
+  "layers": [
+    {
+      "id": "patient_delay",
+      "label": "Patient Delay",
+      "color": "#EC4899",
+      "description": "Non-value wait time",
+      "metricPath": "totals.delayMinutes",
+      "formatter": "duration"
+    },
+    {
+      "id": "care_time",
+      "label": "Care Time",
+      "color": "#8B5CF6",
+      "metricPath": "totals.processMinutes",
+      "formatter": "duration"
+    }
+  ]
+}

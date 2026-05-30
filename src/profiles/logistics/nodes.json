@@ -1,0 +1,23 @@
+{
+  "categories": [
+    {
+      "category": "Inbound",
+      "description": "Supplier and receiving orchestration",
+      "accent": "#0EA5E9",
+      "nodes": [
+        { "label": "Supplier Dock", "icon": "truck", "color": "#0EA5E9", "badge": "Dock", "tagline": "ASN sync", "valueType": "non-value-added", "variant": "delay" },
+        { "label": "Quality Check", "icon": "quality", "color": "#FBBF24", "badge": "QA", "tagline": "Inbound QA", "valueType": "enabler", "variant": "process" }
+      ]
+    },
+    {
+      "category": "Fulfillment",
+      "description": "Pick, pack, ship flow",
+      "accent": "#14B8A6",
+      "nodes": [
+        { "label": "Pick Module", "icon": "inventory", "color": "#14B8A6", "badge": "Pick", "tagline": "Batch waves", "valueType": "value-added", "variant": "process" },
+        { "label": "Pack Station", "icon": "digital", "color": "#F472B6", "badge": "Pack", "tagline": "QC & label", "valueType": "value-added", "variant": "process" },
+        { "label": "Sortation", "icon": "shipping", "color": "#6366F1", "badge": "Sort", "tagline": "Route ready", "valueType": "non-value-added", "variant": "delay" }
+      ]
+    }
+  ]
+}

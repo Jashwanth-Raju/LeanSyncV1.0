@@ -1,0 +1,23 @@
+{
+  "categories": [
+    {
+      "category": "Patient Intake",
+      "description": "Registration and triage",
+      "accent": "#EC4899",
+      "nodes": [
+        { "label": "Registration", "icon": "support", "color": "#EC4899", "badge": "Intake", "tagline": "Front desk", "valueType": "enabler", "variant": "process" },
+        { "label": "Triage", "icon": "quality", "color": "#F97316", "badge": "Nurse", "tagline": "Acuity", "valueType": "value-added", "variant": "process" }
+      ]
+    },
+    {
+      "category": "Clinical",
+      "description": "Bedside diagnostics and treatment",
+      "accent": "#8B5CF6",
+      "nodes": [
+        { "label": "Lab Sample", "icon": "inspection", "color": "#8B5CF6", "badge": "Lab", "tagline": "Specimen", "valueType": "value-added", "variant": "process" },
+        { "label": "Procedure", "icon": "maintenance", "color": "#10B981", "badge": "Care", "tagline": "Treatment", "valueType": "value-added", "variant": "process" },
+        { "label": "Recovery", "icon": "inventory", "color": "#F472B6", "badge": "Hold", "tagline": "Observation", "valueType": "non-value-added", "variant": "delay" }
+      ]
+    }
+  ]
+}

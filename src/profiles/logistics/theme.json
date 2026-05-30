@@ -1,0 +1,14 @@
+{
+  "name": "Logistics",
+  "primary": "#0EA5E9",
+  "secondary": "#14B8A6",
+  "background": "#071521",
+  "nodeDefaultColor": "#0EA5E9",
+  "toolbarGradient": ["rgba(14, 165, 233, 0.95)", "rgba(20, 184, 166, 0.9)"],
+  "cardGradient": ["rgba(7, 21, 33, 0.9)", "rgba(8, 36, 53, 0.94)"],
+  "sidebarGlass": "linear-gradient(180deg, rgba(7,21,33,0.9), rgba(8,36,53,0.95))",
+  "pill": {
+    "saving": "rgba(14, 165, 233, 0.25)",
+    "saved": "rgba(20, 184, 166, 0.25)"
+  }
+}

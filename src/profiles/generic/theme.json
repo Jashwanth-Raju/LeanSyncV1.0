@@ -1,0 +1,14 @@
+{
+  "name": "Generic",
+  "primary": "#FBBF24",
+  "secondary": "#60A5FA",
+  "background": "#111827",
+  "nodeDefaultColor": "#FBBF24",
+  "toolbarGradient": ["rgba(251, 191, 36, 0.95)", "rgba(96, 165, 250, 0.9)"],
+  "cardGradient": ["rgba(17, 24, 39, 0.88)", "rgba(15, 23, 42, 0.94)"],
+  "sidebarGlass": "linear-gradient(180deg, rgba(17,24,39,0.9), rgba(15,23,42,0.95))",
+  "pill": {
+    "saving": "rgba(251, 191, 36, 0.3)",
+    "saved": "rgba(34, 197, 94, 0.25)"
+  }
+}

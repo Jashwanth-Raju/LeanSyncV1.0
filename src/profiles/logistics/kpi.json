@@ -1,0 +1,33 @@
+{
+  "cards": [
+    {
+      "title": "Orders Touched",
+      "primary": { "path": "totals.totalSteps", "format": "number", "suffix": " nodes" },
+      "accentTemplate": "{{totals.nonValueAddedSteps}} queues",
+      "footerTemplate": "{{totals.valueAddedSteps}} value"
+    },
+    {
+      "title": "Throughput Time",
+      "primary": { "path": "totals.leadMinutes", "format": "duration" },
+      "accentTemplate": "Process {{totals.processMinutes}}",
+      "footerTemplate": "Delay {{totals.delayMinutes}}"
+    }
+  ],
+  "layers": [
+    {
+      "id": "co2",
+      "label": "CO₂ Layer",
+      "description": "Transport emissions",
+      "color": "#0EA5E9",
+      "metricPath": "totals.leadMinutes",
+      "formatter": "duration"
+    },
+    {
+      "id": "cost",
+      "label": "Cost Layer",
+      "color": "#FBBF24",
+      "metricPath": "totals.valueAddedSteps",
+      "formatter": "number"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "categories": [
+    {
+      "category": "Strategic Planning",
+      "description": "Vision-to-plan cadence aligning demand and capacity.",
+      "accent": "#6366F1",
+      "nodes": [
+        { "label": "Sales & Ops Planning", "icon": "planning", "color": "#6366F1", "badge": "Planning", "tagline": "Monthly cadence", "valueType": "enabler", "variant": "process" },
+        { "label": "Master Schedule", "icon": "planning", "color": "#0EA5E9", "badge": "MPS", "tagline": "Weekly horizon", "valueType": "enabler", "variant": "process" }
+      ]
+    },
+    {
+      "category": "Production & Transformation",
+      "description": "Fabrication, assembly, and maintenance flow.",
+      "accent": "#F97316",
+      "nodes": [
+        { "label": "Fabrication Cell", "icon": "manufacturing", "color": "#F97316", "badge": "Build", "tagline": "Cycle time focus", "valueType": "value-added", "variant": "process" },
+        { "label": "Assembly Line", "icon": "industry", "color": "#EF4444", "badge": "Flow", "tagline": "Takt aligned", "valueType": "value-added", "variant": "process" },
+        { "label": "Maintenance Station", "icon": "maintenance", "color": "#22C55E", "badge": "Uptime", "tagline": "TPM checks", "valueType": "enabler", "variant": "inventory" }
+      ]
+    },
+    {
+      "category": "Logistics & Distribution",
+      "description": "Inbound and outbound material movement.",
+      "accent": "#F97316",
+      "nodes": [
+        { "label": "Warehouse Buffer", "icon": "warehouse", "color": "#F97316", "badge": "Stock", "tagline": "Days on hand", "valueType": "non-value-added", "variant": "delay" },
+        { "label": "Staging Zone", "icon": "inventory", "color": "#14B8A6", "badge": "WIP", "tagline": "Sequenced", "valueType": "non-value-added", "variant": "delay" },
+        { "label": "Outbound Shipping", "icon": "shipping", "color": "#0EA5E9", "badge": "Delivery", "tagline": "Customer ready", "valueType": "non-value-added", "variant": "process" }
+      ]
+    }
+  ]
+}

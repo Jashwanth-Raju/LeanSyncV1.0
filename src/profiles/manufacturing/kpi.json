@@ -1,0 +1,40 @@
+{
+  "cards": [
+    {
+      "title": "Flow Steps",
+      "primary": { "path": "totals.totalSteps", "format": "number", "suffix": " steps" },
+      "accentTemplate": "{{totals.valueAddedSteps}} VA · {{totals.nonValueAddedSteps}} delays",
+      "footerTemplate": "{{totals.enablerSteps}} enablement"
+    },
+    {
+      "title": "Value-Added Time",
+      "primary": { "path": "totals.valueAddedMinutes", "format": "duration" },
+      "accentTemplate": "Lead {{totals.leadMinutes}} mins",
+      "footerTemplate": "VA Ratio {{valueAddedRatio}}%"
+    },
+    {
+      "title": "Cycle vs Takt",
+      "primary": { "path": "averageCycle", "format": "duration" },
+      "accentTemplate": "Takt {{averageTakt}}",
+      "footerTemplate": "Gap {{taktGap}}"
+    }
+  ],
+  "layers": [
+    {
+      "id": "co2",
+      "label": "CO₂ Emissions",
+      "description": "Process energy intensity",
+      "color": "#34D399",
+      "metricPath": "totals.processMinutes",
+      "formatter": "duration"
+    },
+    {
+      "id": "cost",
+      "label": "Cost Layer",
+      "description": "Cycle cost proxy",
+      "color": "#F97316",
+      "metricPath": "totals.valueAddedSteps",
+      "formatter": "number"
+    }
+  ]
+}

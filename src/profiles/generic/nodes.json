@@ -1,0 +1,14 @@
+{
+  "categories": [
+    {
+      "category": "Workflow",
+      "description": "Generic process building blocks",
+      "accent": "#FBBF24",
+      "nodes": [
+        { "label": "Task", "icon": "digital", "color": "#FBBF24", "badge": "Step", "tagline": "Standard work", "valueType": "value-added", "variant": "process" },
+        { "label": "Review", "icon": "quality", "color": "#60A5FA", "badge": "QA", "tagline": "Approval queue", "valueType": "non-value-added", "variant": "delay" },
+        { "label": "Data Sync", "icon": "performance", "color": "#34D399", "badge": "Signal", "tagline": "Integration", "valueType": "enabler", "variant": "process" }
+      ]
+    }
+  ]
+}

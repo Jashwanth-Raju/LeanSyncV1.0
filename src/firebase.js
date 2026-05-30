@@ -19,5 +19,5 @@ export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
 export const loginWithGoogle = () => signInWithPopup(auth, provider);
 export const logout = () => signOut(auth);
-// Firestore
 export const db = getFirestore(app);
+export const firebaseConfigObject = firebaseConfig;

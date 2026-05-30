@@ -23,6 +23,14 @@ export const iconPalettes = {
         disabledBg: "rgba(148, 163, 184, 0.18)",
         disabledColor: "#a1a8b5",
     },
+    hide: {
+        activeBg: "linear-gradient(135deg, rgba(148, 163, 184, 0.4), rgba(100, 116, 139, 0.45))",
+        borderColor: "rgba(148, 163, 184, 0.5)",
+        iconColor: "#0f172a",
+        shadow: "0 10px 22px rgba(15, 23, 42, 0.22)",
+        disabledBg: "rgba(148, 163, 184, 0.18)",
+        disabledColor: "#0f172a",
+    },
 };
 export const getIconButtonStyle = (palette, isDisabled) => ({
     width: 44,

@@ -1,116 +1,15 @@
 /** @jsxImportSource react */
-import * as React from "react";
-import { useState, useRef, useCallback, useEffect } from "react";
-import ReactFlow, {
-  addEdge,
-  Background,
-  Controls,
-  MiniMap,
-  MarkerType,
-  ConnectionLineType,
-  Handle,
-  Position,
-  applyNodeChanges,
-  applyEdgeChanges,
-} from "reactflow";
-import type { Node, Edge, Connection } from "reactflow";
-import "reactflow/dist/style.css";
-
-import {
-  FaTruck,
-  FaCogs,
-  FaWarehouse,
-  FaUserTie,
-  FaBoxOpen,
-  FaUndo,
-  FaRedo,
-  FaSave,
-  FaFolderOpen,
-  FaTrash,
-  FaChevronLeft,
-  FaChevronRight,
-} from "react-icons/fa";
-
-import { auth, loginWithGoogle, logout, db } from "./firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { useEffect, useState } from "react";
 import type { User } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth, loginWithGoogle, logout } from "./firebase";
+import { ProjectProvider, useProject } from "./lib/ProjectContext";
+import { CollaborationProvider } from "./lib/CollaborationContext";
+import { ProjectList } from "./ui/ProjectList";
 import Whiteboard from "./Whiteboard";
 
-/* ------------ Types ------------ */
-type MyNodeData = {
-  label: string;
-  icon: string;
-  color: string;
-  processTime?: string;
-  cycleTime?: string;
-  quantity?: number;
-  owner?: string;
-};
-
-/* ------------ Node Library ------------ */
-const nodeLibrary = [
-  {
-    category: "Transport",
-    nodes: [
-      { type: "truck", label: "Truck", icon: "truck", color: "#FFA500" },
-      { type: "van", label: "Van", icon: "truck", color: "#FFB347" },
-    ],
-  },
-  {
-    category: "Process",
-    nodes: [
-      { type: "manufacturing", label: "Manufacturing", icon: "manufacturing", color: "#3498DB" },
-      { type: "inspection", label: "Inspection", icon: "inspection", color: "#1ABC9C" },
-    ],
-  },
-  {
-    category: "Storage",
-    nodes: [
-      { type: "warehouse", label: "Warehouse", icon: "warehouse", color: "#2ECC71" },
-      { type: "inventory", label: "Inventory", icon: "inventory", color: "#27AE60" },
-    ],
-  },
-];
-
-/* ------------ Icons ------------ */
-const iconMap: Record<string, JSX.Element> = {
-  truck: <FaTruck />,
-  manufacturing: <FaCogs />,
-  inspection: <FaUserTie />,
-  warehouse: <FaWarehouse />,
-  inventory: <FaBoxOpen />,
-};
-
-/* ------------ Custom Node ------------ */
-const CustomNode = ({ data }: { data: MyNodeData }) => (
-  <div
-    style={{
-      pointerEvents: "all",
-      padding: 12,
-      display: "flex",
-      alignItems: "center",
-      background: `linear-gradient(135deg, ${data.color}88, ${data.color})`,
-      borderRadius: 12,
-      color: "#fff",
-      minWidth: 140,
-      justifyContent: "flex-start",
-      fontWeight: 600,
-      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-      cursor: "pointer",
-    }}
-  >
-    <Handle type="target" position={Position.Top} style={{ background: "#555" }} />
-    <div style={{ width: 28, marginRight: 10 }}>{iconMap[data.icon]}</div>
-    <div>{data.label}</div>
-    <Handle type="source" position={Position.Bottom} style={{ background: "#555" }} />
-  </div>
-);
-
-const nodeTypes = { custom: CustomNode };
-
-/* ------------ Header ------------ */
 const Header = ({ user }: { user: User | null }) => {
+  const { selectedProjectId, selectedProfile, clearProject } = useProject();
   const userInitial = user?.displayName?.charAt(0)?.toUpperCase() ?? user?.email?.charAt(0)?.toUpperCase();
 
   return (
@@ -142,11 +41,7 @@ const Header = ({ user }: { user: User | null }) => {
             boxShadow: "0 14px 30px rgba(37, 99, 235, 0.35)",
           }}
         >
-          <img
-            src="/mylogo.png"
-            alt="Company logo"
-            style={{ width: 26, height: 26, objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(15, 23, 42, 0.35))" }}
-          />
+          <img src="/mylogo.png" alt="LeanSync" style={{ width: 26, height: 26, objectFit: "contain" }} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <span style={{ fontSize: 18, fontWeight: 600, letterSpacing: 0.4 }}>LeanSync Value Stream</span>
@@ -156,8 +51,30 @@ const Header = ({ user }: { user: User | null }) => {
         </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        {user && (
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        {selectedProjectId && (
+          <button
+            type="button"
+            onClick={clearProject}
+            style={{
+              borderRadius: 999,
+              padding: "8px 14px",
+              border: "1px solid rgba(255,255,255,0.3)",
+              background: "rgba(255,255,255,0.08)",
+              color: "#f8fafc",
+              fontSize: 12,
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              cursor: "pointer",
+            }}
+          >
+            Switch Project
+          </button>
+        )}
+        {selectedProjectId && (
+          <span style={{ fontSize: 12, color: "#cbd5f5" }}>Profile · {selectedProfile}</span>
+        )}
+        {user ? (
           <>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
               <span style={{ fontSize: 13, fontWeight: 500 }}>{user.displayName ?? user.email ?? "Signed in"}</span>
@@ -180,11 +97,7 @@ const Header = ({ user }: { user: User | null }) => {
               }}
             >
               {user.photoURL ? (
-                <img
-                  src={user.photoURL}
-                  alt={user.displayName ?? user.email ?? "User avatar"}
-                  style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
-                />
+                <img src={user.photoURL} alt="Avatar" style={{ width: "100%", height: "100%", borderRadius: "50%" }} />
               ) : (
                 userInitial ?? "?"
               )}
@@ -201,35 +114,69 @@ const Header = ({ user }: { user: User | null }) => {
                 fontWeight: 600,
                 letterSpacing: 0.3,
                 cursor: "pointer",
-                boxShadow: "0 12px 28px rgba(239, 68, 68, 0.3)",
-                transition: "transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease",
               }}
             >
               Logout
             </button>
           </>
+        ) : (
+          <button
+            onClick={loginWithGoogle}
+            style={{
+              padding: "10px 16px",
+              borderRadius: 14,
+              border: "none",
+              background: "linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(14, 165, 233, 0.9))",
+              color: "#fff",
+              fontWeight: 600,
+              letterSpacing: 0.3,
+              cursor: "pointer",
+            }}
+          >
+            Sign in with Google
+          </button>
         )}
       </div>
     </header>
   );
 };
 
-/* ------------ Icon Button ------------ */
-const iconBtnStyle = (bg: string) => ({
-  width: 32,
-  height: 32,
-  borderRadius: "50%",
-  background: bg,
-  color: "#fff",
-  border: "none",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  fontSize: 14,
-});
+const AppShell = ({ user }: { user: User | null }) => {
+  const { selectedProjectId } = useProject();
+  return (
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+      <Header user={user} />
+      <div style={{ flexGrow: 1, background: "#0f172a", color: "#f8fafc", display: "flex" }}>
+        {!user ? (
+          <div style={{ margin: "auto", textAlign: "center" }}>
+            <p style={{ marginBottom: 16 }}>Sign in to access your LeanSync workspaces.</p>
+            <button
+              onClick={loginWithGoogle}
+              style={{
+                padding: "10px 20px",
+                borderRadius: 999,
+                border: "none",
+                background: "linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(14, 165, 233, 0.95))",
+                color: "#fff",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Sign in with Google
+            </button>
+          </div>
+        ) : selectedProjectId ? (
+          <CollaborationProvider>
+            <Whiteboard />
+          </CollaborationProvider>
+        ) : (
+          <ProjectList />
+        )}
+      </div>
+    </div>
+  );
+};
 
-/* ------------ Main App ------------ */
 const App = () => {
   const [user, setUser] = useState<User | null>(null);
 
@@ -239,31 +186,9 @@ const App = () => {
   }, []);
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-      <Header user={user} />
-      {!user ? (
-        <div style={{ flexGrow: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
-          <button
-            onClick={loginWithGoogle}
-            style={{
-              padding: 12,
-              fontSize: 16,
-              background: "#4285F4",
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
-          >
-            Sign in with Google
-          </button>
-        </div>
-      ) : (
-        <div style={{ flexGrow: 1, background: "#fafafa", display: "flex" }}>
-  <Whiteboard />
-</div>
-      )}
-    </div>
+    <ProjectProvider userId={user?.uid ?? null}>
+      <AppShell user={user} />
+    </ProjectProvider>
   );
 };
 
