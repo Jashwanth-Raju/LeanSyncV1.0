@@ -71,6 +71,7 @@ import { SustainabilityPopup } from "./whiteboard/components/SustainabilityPopup
 import type { NodeProps } from "reactflow";
 import { co2ColorScale, computeNodeCO2, parseCO2Numeric } from "./whiteboard/utils/co2";
 import { EmissionWizard, type EmissionWizardStage } from "./whiteboard/components/EmissionWizard";
+import { QuickFillModal } from "./whiteboard/components/QuickFillModal";
 import { db } from "./firebase";
 import { useProject } from "./lib/ProjectContext";
 
@@ -325,6 +326,7 @@ const Whiteboard: React.FC = () => {
   });
   const [isCo2TrackingEnabled, setIsCo2TrackingEnabled] = useState(false);
   const [emissionWizardOpen, setEmissionWizardOpen] = useState(false);
+  const [quickFillOpen, setQuickFillOpen] = useState(false);
   const [emissionWizardStage, setEmissionWizardStage] =
     useState<EmissionWizardStage>("prompt");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
@@ -574,6 +576,21 @@ const Whiteboard: React.FC = () => {
     [nodes]
   );
 
+  const bottleneckNodeId = useMemo(() => {
+    let maxMinutes = 0;
+    let bottleneckId: string | null = null;
+    nodes.forEach((node) => {
+      const minutes = parseDurationToMinutes(node.data.cycleTime);
+      if (minutes !== null && minutes > maxMinutes) {
+        maxMinutes = minutes;
+        bottleneckId = node.id;
+      }
+    });
+    return nodes.filter((n) => parseDurationToMinutes(n.data.cycleTime) !== null).length >= 2
+      ? bottleneckId
+      : null;
+  }, [nodes]);
+
   const co2Context = useMemo(() => {
     const map = new Map<string, ReturnType<typeof computeNodeCO2>>();
     let maxNodeValue = 0;
@@ -684,6 +701,7 @@ const Whiteboard: React.FC = () => {
       custom: (props: NodeProps<WhiteboardNodeData>) => {
         const { data, id } = props;
         const isPopupOpen = openSustainabilityNodeId === id;
+        const isBottleneck = id === bottleneckNodeId;
         const a = parseFloat(data.oeeAvailability ?? "");
         const p = parseFloat(data.oeePerformance ?? "");
         const q = parseFloat(data.oeeQuality ?? "");
@@ -716,11 +734,17 @@ const Whiteboard: React.FC = () => {
               minWidth: 140,
               justifyContent: "flex-start",
               fontWeight: 600,
-              boxShadow: showCO2Layer
+              boxShadow: isBottleneck
+                ? "0 0 0 3px #ef4444, 0 0 24px rgba(239,68,68,0.55)"
+                : showCO2Layer
                 ? `0 12px 22px ${heatColor}55`
                 : "0 8px 16px rgba(0,0,0,0.18)",
               cursor: "pointer",
-              border: showCO2Layer ? `1px solid ${heatColor}` : "none",
+              border: isBottleneck
+                ? "2px solid #ef4444"
+                : showCO2Layer
+                ? `1px solid ${heatColor}`
+                : "none",
               transition: "all 0.25s ease",
               textShadow: showCO2Layer ? "none" : "0 1px 2px rgba(15, 23, 42, 0.35)",
             }}
@@ -748,6 +772,11 @@ const Whiteboard: React.FC = () => {
               {oeeValue && (
                 <div style={{ fontSize: 10, color: "#fbbf24", fontWeight: 700 }}>
                   OEE: {oeeValue}%
+                </div>
+              )}
+              {isBottleneck && (
+                <div style={{ fontSize: 9, color: "#fca5a5", fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", marginTop: 2 }}>
+                  ⚠ Bottleneck
                 </div>
               )}
               {showCO2Layer && co2Metric && (
@@ -778,7 +807,7 @@ const Whiteboard: React.FC = () => {
         );
       },
     }),
-    [openSustainabilityNodeId, showCO2Layer, co2Context]
+    [openSustainabilityNodeId, showCO2Layer, co2Context, bottleneckNodeId]
   );
 
   const scenarioMeta = SCENARIO_META[activeScenario];
@@ -1653,6 +1682,19 @@ const Whiteboard: React.FC = () => {
     event.dataTransfer.dropEffect = "move";
   }, []);
 
+  const handleQuickFillUpdate = useCallback(
+    (nodeId: string, key: keyof WhiteboardNodeData, value: string) => {
+      setNodes((nds) =>
+        nds.map((node) =>
+          node.id === nodeId
+            ? { ...node, data: { ...node.data, [key]: value || undefined } }
+            : node
+        )
+      );
+    },
+    [setNodes]
+  );
+
   const handleExportMap = useCallback(() => {
     console.log("Export map action triggered");
   }, []);
@@ -1916,7 +1958,25 @@ const Whiteboard: React.FC = () => {
           )}
         </div>
           </div>
-        <div style={{ display: "inline-flex", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "inline-flex", gap: 10, alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setQuickFillOpen(true)}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 999,
+              border: "1px solid rgba(99, 102, 241, 0.45)",
+              background: "linear-gradient(135deg, rgba(99,102,241,0.25), rgba(14,165,233,0.2))",
+              color: "#c7d2fe",
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: 0.4,
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(99,102,241,0.2)",
+            }}
+          >
+            Quick Fill
+          </button>
           <div
             style={{
               display: "inline-flex",
@@ -2024,30 +2084,6 @@ const Whiteboard: React.FC = () => {
               <Controls />
             </ReactFlow>
 
-            {(toolbarCollapsed || !toolbarVisible) && (
-              <button
-                type="button"
-                onClick={showToolbar}
-                style={{
-                  position: "absolute",
-                  top: overlayTop - 8,
-                  right: overlayPadding,
-                  padding: "8px 12px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(148, 163, 184, 0.25)",
-                  background: "rgba(15, 23, 42, 0.6)",
-                  color: "#e2e8f0",
-                  fontSize: 12,
-                  letterSpacing: 0.4,
-                  cursor: "pointer",
-                  boxShadow: "0 12px 24px rgba(15, 23, 42, 0.28)",
-                  backdropFilter: "blur(12px)",
-                  zIndex: 23,
-                }}
-              >
-                Show tools
-              </button>
-            )}
 
             <button
               type="button"
@@ -2094,59 +2130,78 @@ const Whiteboard: React.FC = () => {
               {showCO2Layer ? "CO₂ Layer On" : "CO₂ Layer Off"}
             </button>
 
+            {/* Bottom action bar — undo/redo/delete + save status */}
             <div
               aria-live="polite"
               style={{
                 position: "absolute",
-                right: overlayPadding,
-                bottom: 24,
+                bottom: 20,
+                left: "50%",
+                transform: "translateX(-50%)",
                 zIndex: 24,
                 display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                minWidth: 210,
-                justifyContent: "space-between",
-                padding: "8px 10px 8px 12px",
+                alignItems: "stretch",
                 borderRadius: 999,
-                border: `1px solid ${saveStatusConfig.border}`,
-                background: saveStatusConfig.background,
-                color: saveStatusConfig.color,
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: 0.4,
-                textTransform: "uppercase",
-                boxShadow: "0 14px 30px rgba(15, 23, 42, 0.28)",
-                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(148, 163, 184, 0.2)",
+                background: "rgba(15, 23, 42, 0.9)",
+                backdropFilter: "blur(18px)",
+                boxShadow: "0 16px 40px rgba(2, 6, 23, 0.45)",
+                overflow: "hidden",
               }}
             >
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                <span
+              {[
+                { label: "↩", title: "Undo (Ctrl+Z)", onClick: undo, disabled: !(activeHistory.past.length > 0) },
+                { label: "↪", title: "Redo (Ctrl+Y)", onClick: redo, disabled: !(activeHistory.future.length > 0) },
+                { label: "⌫", title: "Delete selected", onClick: deleteSelected, disabled: false },
+              ].map((action) => (
+                <button
+                  key={action.title}
+                  type="button"
+                  title={action.title}
+                  onClick={action.onClick}
+                  disabled={action.disabled}
                   style={{
-                    width: 8,
-                    height: 8,
-                    flex: "0 0 auto",
-                    borderRadius: "50%",
-                    background: saveStatusConfig.color,
-                    boxShadow: `0 0 10px ${saveStatusConfig.color}`,
+                    padding: "11px 18px",
+                    border: "none",
+                    borderRight: "1px solid rgba(148, 163, 184, 0.12)",
+                    background: "transparent",
+                    color: action.disabled ? "#334155" : "#94a3b8",
+                    fontSize: 16,
+                    cursor: action.disabled ? "default" : "pointer",
                   }}
-                />
+                >
+                  {action.label}
+                </button>
+              ))}
+              <div style={{ width: 1, background: "rgba(148, 163, 184, 0.15)", margin: "8px 0" }} />
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  padding: "11px 16px",
+                  color: saveStatusConfig.color,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                }}
+              >
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: saveStatusConfig.color, boxShadow: `0 0 8px ${saveStatusConfig.color}`, flexShrink: 0 }} />
                 {saveStatusConfig.label}
-              </span>
+              </div>
               <button
                 type="button"
-                onClick={() => {
-                  void commitPendingSave();
-                }}
+                onClick={() => void commitPendingSave()}
                 style={{
-                  marginLeft: 4,
-                  padding: "5px 9px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(255, 255, 255, 0.28)",
-                  background: "rgba(255, 255, 255, 0.12)",
-                  color: "inherit",
+                  padding: "11px 16px",
+                  border: "none",
+                  borderLeft: "1px solid rgba(148, 163, 184, 0.12)",
+                  background: "transparent",
+                  color: "#64748b",
                   fontSize: 11,
-                  fontWeight: 800,
-                  letterSpacing: 0.3,
+                  fontWeight: 700,
+                  letterSpacing: 0.4,
                   textTransform: "uppercase",
                   cursor: "pointer",
                 }}
@@ -2206,17 +2261,6 @@ const Whiteboard: React.FC = () => {
               {sidebarOpen ? <FaChevronLeft /> : <FaChevronRight />}
             </button>
 
-        <ToolbarPanel
-          top={overlayTop}
-          right={overlayPadding}
-          visible={!toolbarCollapsed && toolbarVisible}
-          canUndo={activeHistory.past.length > 0}
-          canRedo={activeHistory.future.length > 0}
-          onUndo={undo}
-          onRedo={redo}
-          onDelete={deleteSelected}
-          onHide={hideToolbar}
-        />
 
             {dashboardVisible && (
               <DashboardOverlay
@@ -2266,6 +2310,13 @@ const Whiteboard: React.FC = () => {
       />
         )}
       </div>
+      {quickFillOpen && (
+        <QuickFillModal
+          nodes={nodes}
+          onUpdate={handleQuickFillUpdate}
+          onClose={() => setQuickFillOpen(false)}
+        />
+      )}
       <EmissionWizard
         open={emissionWizardOpen}
         stage={emissionWizardStage}
