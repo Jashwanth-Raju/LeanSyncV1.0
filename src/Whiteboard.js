@@ -17,6 +17,8 @@ import { SustainabilityBadge } from "./whiteboard/components/SustainabilityBadge
 import { SustainabilityPopup } from "./whiteboard/components/SustainabilityPopup";
 import { co2ColorScale, computeNodeCO2, parseCO2Numeric } from "./whiteboard/utils/co2";
 import { EmissionWizard } from "./whiteboard/components/EmissionWizard";
+import { QuickFillModal } from "./whiteboard/components/QuickFillModal";
+import { exportToPdf } from "./whiteboard/utils/exportPdf";
 import { db } from "./firebase";
 import { useProject } from "./lib/ProjectContext";
 const withEmissionDefaults = (data, defaults, trackingEnabled) => {
@@ -214,6 +216,7 @@ const Whiteboard = () => {
     });
     const [isCo2TrackingEnabled, setIsCo2TrackingEnabled] = useState(false);
     const [emissionWizardOpen, setEmissionWizardOpen] = useState(false);
+    const [quickFillOpen, setQuickFillOpen] = useState(false);
     const [emissionWizardStage, setEmissionWizardStage] = useState("prompt");
     const [categoryFilter, setCategoryFilter] = useState("All");
     const [searchTerm, setSearchTerm] = useState("");
@@ -422,6 +425,20 @@ const Whiteboard = () => {
         };
     }, [selectedProjectId, setNodes, setEdges]);
     const { cards: dashboardCards, totals } = useMemo(() => computeDashboardMetrics(nodes), [nodes]);
+    const bottleneckNodeId = useMemo(() => {
+        let maxMinutes = 0;
+        let bottleneckId = null;
+        nodes.forEach((node) => {
+            const minutes = parseDurationToMinutes(node.data.cycleTime);
+            if (minutes !== null && minutes > maxMinutes) {
+                maxMinutes = minutes;
+                bottleneckId = node.id;
+            }
+        });
+        return nodes.filter((n) => parseDurationToMinutes(n.data.cycleTime) !== null).length >= 2
+            ? bottleneckId
+            : null;
+    }, [nodes]);
     const co2Context = useMemo(() => {
         const map = new Map();
         let maxNodeValue = 0;
@@ -514,6 +531,13 @@ const Whiteboard = () => {
         custom: (props) => {
             const { data, id } = props;
             const isPopupOpen = openSustainabilityNodeId === id;
+            const isBottleneck = id === bottleneckNodeId;
+            const a = parseFloat(data.oeeAvailability ?? "");
+            const p = parseFloat(data.oeePerformance ?? "");
+            const q = parseFloat(data.oeeQuality ?? "");
+            const oeeValue = !isNaN(a) && !isNaN(p) && !isNaN(q)
+                ? ((a / 100) * (p / 100) * (q / 100) * 100).toFixed(1)
+                : null;
             const co2Metric = showCO2Layer ? co2Context.map.get(id) : null;
             const heatColor = co2Metric
                 ? co2ColorScale(co2Metric.absoluteValue, co2Context.maxNodeValue || 1)
@@ -537,19 +561,25 @@ const Whiteboard = () => {
                     minWidth: 140,
                     justifyContent: "flex-start",
                     fontWeight: 600,
-                    boxShadow: showCO2Layer
-                        ? `0 12px 22px ${heatColor}55`
-                        : "0 8px 16px rgba(0,0,0,0.18)",
+                    boxShadow: isBottleneck
+                        ? "0 0 0 3px #ef4444, 0 0 24px rgba(239,68,68,0.55)"
+                        : showCO2Layer
+                            ? `0 12px 22px ${heatColor}55`
+                            : "0 8px 16px rgba(0,0,0,0.18)",
                     cursor: "pointer",
-                    border: showCO2Layer ? `1px solid ${heatColor}` : "none",
+                    border: isBottleneck
+                        ? "2px solid #ef4444"
+                        : showCO2Layer
+                            ? `1px solid ${heatColor}`
+                            : "none",
                     transition: "all 0.25s ease",
                     textShadow: showCO2Layer ? "none" : "0 1px 2px rgba(15, 23, 42, 0.35)",
-                }, children: [_jsx(Handle, { type: "target", position: Position.Top, id: "t", style: { background: "#555" } }), _jsx(Handle, { type: "target", position: Position.Bottom, id: "b", style: { background: "#555" } }), _jsx(Handle, { type: "target", position: Position.Left, id: "l", style: { background: "#555" } }), _jsx(Handle, { type: "target", position: Position.Right, id: "r", style: { background: "#555" } }), _jsx("div", { style: { width: 28, marginRight: 10, color: textColor }, children: iconMap[data.icon] }), _jsxs("div", { style: { lineHeight: 1.2 }, children: [_jsx("div", { children: data.label }), data.processTime && (_jsxs("div", { style: { fontSize: 10, color: secondaryColor, fontWeight: 500 }, children: ["PT: ", data.processTime] })), data.cycleTime && (_jsxs("div", { style: { fontSize: 10, color: secondaryColor, fontWeight: 500 }, children: ["CT: ", data.cycleTime] })), showCO2Layer && co2Metric && (_jsxs("div", { style: { fontSize: 10, color: secondaryColor, fontWeight: 600 }, children: ["CO\u2082: ", co2Metric.label] }))] }), _jsx(Handle, { type: "source", position: Position.Top, id: "st", style: { background: "#555" } }), _jsx(Handle, { type: "source", position: Position.Bottom, id: "sb", style: { background: "#555" } }), _jsx(Handle, { type: "source", position: Position.Left, id: "sl", style: { background: "#555" } }), _jsx(Handle, { type: "source", position: Position.Right, id: "sr", style: { background: "#555" } }), _jsx(SustainabilityBadge, { sustainability: data.sustainability, onClick: (event) => {
+                }, children: [_jsx(Handle, { type: "target", position: Position.Top, id: "t", style: { background: "#555" } }), _jsx(Handle, { type: "target", position: Position.Bottom, id: "b", style: { background: "#555" } }), _jsx(Handle, { type: "target", position: Position.Left, id: "l", style: { background: "#555" } }), _jsx(Handle, { type: "target", position: Position.Right, id: "r", style: { background: "#555" } }), _jsx("div", { style: { width: 28, marginRight: 10, color: textColor }, children: iconMap[data.icon] }), _jsxs("div", { style: { lineHeight: 1.2 }, children: [_jsx("div", { children: data.label }), data.processTime && (_jsxs("div", { style: { fontSize: 10, color: secondaryColor, fontWeight: 500 }, children: ["PT: ", data.processTime] })), data.cycleTime && (_jsxs("div", { style: { fontSize: 10, color: secondaryColor, fontWeight: 500 }, children: ["CT: ", data.cycleTime] })), oeeValue && (_jsxs("div", { style: { fontSize: 10, color: "#fbbf24", fontWeight: 700 }, children: ["OEE: ", oeeValue, "%"] })), isBottleneck && (_jsx("div", { style: { fontSize: 9, color: "#fca5a5", fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", marginTop: 2 }, children: "\u26A0 Bottleneck" })), showCO2Layer && co2Metric && (_jsxs("div", { style: { fontSize: 10, color: secondaryColor, fontWeight: 600 }, children: ["CO\u2082: ", co2Metric.label] }))] }), _jsx(Handle, { type: "source", position: Position.Top, id: "st", style: { background: "#555" } }), _jsx(Handle, { type: "source", position: Position.Bottom, id: "sb", style: { background: "#555" } }), _jsx(Handle, { type: "source", position: Position.Left, id: "sl", style: { background: "#555" } }), _jsx(Handle, { type: "source", position: Position.Right, id: "sr", style: { background: "#555" } }), _jsx(SustainabilityBadge, { sustainability: data.sustainability, onClick: (event) => {
                             event.stopPropagation();
                             setOpenSustainabilityNodeId((prev) => (prev === id ? null : id));
                         } }), isPopupOpen && (_jsx(SustainabilityPopup, { sustainability: data.sustainability, onClose: () => setOpenSustainabilityNodeId(null) }))] }));
         },
-    }), [openSustainabilityNodeId, showCO2Layer, co2Context]);
+    }), [openSustainabilityNodeId, showCO2Layer, co2Context, bottleneckNodeId]);
     const scenarioMeta = SCENARIO_META[activeScenario];
     useEffect(() => {
         if (isSwitchingScenarioRef.current || isApplyingRef.current || isRemoteHydratingRef.current)
@@ -1250,9 +1280,37 @@ const Whiteboard = () => {
         event.preventDefault();
         event.dataTransfer.dropEffect = "move";
     }, []);
-    const handleExportMap = useCallback(() => {
-        console.log("Export map action triggered");
-    }, []);
+    const handleQuickFillUpdate = useCallback((nodeId, key, value) => {
+        setNodes((nds) => nds.map((node) => node.id === nodeId
+            ? { ...node, data: { ...node.data, [key]: value || undefined } }
+            : node));
+    }, [setNodes]);
+    const handleExportMap = useCallback(async () => {
+        if (!reactFlowWrapperRef.current)
+            return;
+        const wasOnInsights = activeTab === "insights";
+        if (wasOnInsights) {
+            setActiveTab("canvas");
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        }
+        const bottleneckNode = bottleneckNodeId
+            ? nodes.find((n) => n.id === bottleneckNodeId)
+            : null;
+        try {
+            await exportToPdf({
+                canvasElement: reactFlowWrapperRef.current,
+                scenarioLabel: SCENARIO_META[activeScenario].label,
+                dashboardCards,
+                bottleneckLabel: bottleneckNode?.data.label ?? null,
+            });
+        }
+        catch (err) {
+            console.error("PDF export failed", err);
+        }
+        if (wasOnInsights) {
+            setActiveTab("insights");
+        }
+    }, [reactFlowWrapperRef, activeTab, activeScenario, dashboardCards, bottleneckNodeId, nodes]);
     const handleImportMap = useCallback(() => {
         console.log("Import map action triggered");
     }, []);
@@ -1444,7 +1502,29 @@ const Whiteboard = () => {
                                             letterSpacing: 0.5,
                                             textTransform: "uppercase",
                                             cursor: "pointer",
-                                        }, children: "Copy Current" }))] })] }), _jsxs("div", { style: { display: "inline-flex", gap: 12, alignItems: "center" }, children: [_jsx("div", { style: {
+                                        }, children: "Copy Current" }))] })] }), _jsxs("div", { style: { display: "inline-flex", gap: 10, alignItems: "center" }, children: [_jsx("button", { type: "button", onClick: () => setQuickFillOpen(true), style: {
+                                    padding: "8px 16px",
+                                    borderRadius: 999,
+                                    border: "1px solid rgba(99, 102, 241, 0.45)",
+                                    background: "linear-gradient(135deg, rgba(99,102,241,0.25), rgba(14,165,233,0.2))",
+                                    color: "#c7d2fe",
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    letterSpacing: 0.4,
+                                    cursor: "pointer",
+                                    boxShadow: "0 4px 12px rgba(99,102,241,0.2)",
+                                }, children: "Quick Fill" }), _jsx("button", { type: "button", onClick: () => void handleExportMap(), style: {
+                                    padding: "8px 16px",
+                                    borderRadius: 999,
+                                    border: "1px solid rgba(34, 197, 94, 0.4)",
+                                    background: "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(16,185,129,0.15))",
+                                    color: "#86efac",
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    letterSpacing: 0.4,
+                                    cursor: "pointer",
+                                    boxShadow: "0 4px 12px rgba(34,197,94,0.15)",
+                                }, children: "Export PDF" }), _jsx("div", { style: {
                                     display: "inline-flex",
                                     padding: 4,
                                     borderRadius: 999,
@@ -1490,22 +1570,7 @@ const Whiteboard = () => {
                             }, fitView: true, snapToGrid: true, snapGrid: [20, 20], connectionLineType: ConnectionLineType.SmoothStep, defaultEdgeOptions: {
                                 markerEnd: { type: MarkerType.ArrowClosed },
                                 type: "smoothstep",
-                            }, proOptions: { hideAttribution: true }, style: { width: "100%", height: "100%" }, children: [_jsx(Background, {}), _jsx(MiniMap, {}), _jsx(Controls, {})] }), (toolbarCollapsed || !toolbarVisible) && (_jsx("button", { type: "button", onClick: showToolbar, style: {
-                                position: "absolute",
-                                top: overlayTop - 8,
-                                right: overlayPadding,
-                                padding: "8px 12px",
-                                borderRadius: 999,
-                                border: "1px solid rgba(148, 163, 184, 0.25)",
-                                background: "rgba(15, 23, 42, 0.6)",
-                                color: "#e2e8f0",
-                                fontSize: 12,
-                                letterSpacing: 0.4,
-                                cursor: "pointer",
-                                boxShadow: "0 12px 24px rgba(15, 23, 42, 0.28)",
-                                backdropFilter: "blur(12px)",
-                                zIndex: 23,
-                            }, children: "Show tools" })), _jsxs("button", { type: "button", onClick: () => setShowCO2Layer((value) => !value), style: {
+                            }, proOptions: { hideAttribution: true }, style: { width: "100%", height: "100%" }, children: [_jsx(Background, {}), _jsx(MiniMap, {}), _jsx(Controls, {})] }), _jsxs("button", { type: "button", onClick: () => setShowCO2Layer((value) => !value), style: {
                                 position: "absolute",
                                 top: overlayTop - 12,
                                 right: toolbarRight,
@@ -1541,44 +1606,49 @@ const Whiteboard = () => {
                                             : "0 0 10px rgba(34, 197, 94, 0.6)",
                                     } }), showCO2Layer ? "CO₂ Layer On" : "CO₂ Layer Off"] }), _jsxs("div", { "aria-live": "polite", style: {
                                 position: "absolute",
-                                right: overlayPadding,
-                                bottom: 24,
+                                bottom: 20,
+                                left: "50%",
+                                transform: "translateX(-50%)",
                                 zIndex: 24,
                                 display: "inline-flex",
-                                alignItems: "center",
-                                gap: 8,
-                                minWidth: 210,
-                                justifyContent: "space-between",
-                                padding: "8px 10px 8px 12px",
+                                alignItems: "stretch",
                                 borderRadius: 999,
-                                border: `1px solid ${saveStatusConfig.border}`,
-                                background: saveStatusConfig.background,
-                                color: saveStatusConfig.color,
-                                fontSize: 12,
-                                fontWeight: 700,
-                                letterSpacing: 0.4,
-                                textTransform: "uppercase",
-                                boxShadow: "0 14px 30px rgba(15, 23, 42, 0.28)",
-                                backdropFilter: "blur(12px)",
-                            }, children: [_jsxs("span", { style: { display: "inline-flex", alignItems: "center", gap: 8 }, children: [_jsx("span", { style: {
-                                                width: 8,
-                                                height: 8,
-                                                flex: "0 0 auto",
-                                                borderRadius: "50%",
-                                                background: saveStatusConfig.color,
-                                                boxShadow: `0 0 10px ${saveStatusConfig.color}`,
-                                            } }), saveStatusConfig.label] }), _jsx("button", { type: "button", onClick: () => {
-                                        void commitPendingSave();
-                                    }, style: {
-                                        marginLeft: 4,
-                                        padding: "5px 9px",
-                                        borderRadius: 999,
-                                        border: "1px solid rgba(255, 255, 255, 0.28)",
-                                        background: "rgba(255, 255, 255, 0.12)",
-                                        color: "inherit",
+                                border: "1px solid rgba(148, 163, 184, 0.2)",
+                                background: "rgba(15, 23, 42, 0.9)",
+                                backdropFilter: "blur(18px)",
+                                boxShadow: "0 16px 40px rgba(2, 6, 23, 0.45)",
+                                overflow: "hidden",
+                            }, children: [[
+                                    { label: "↩", title: "Undo (Ctrl+Z)", onClick: undo, disabled: !(activeHistory.past.length > 0) },
+                                    { label: "↪", title: "Redo (Ctrl+Y)", onClick: redo, disabled: !(activeHistory.future.length > 0) },
+                                    { label: "⌫", title: "Delete selected", onClick: deleteSelected, disabled: false },
+                                ].map((action) => (_jsx("button", { type: "button", title: action.title, onClick: action.onClick, disabled: action.disabled, style: {
+                                        padding: "11px 18px",
+                                        border: "none",
+                                        borderRight: "1px solid rgba(148, 163, 184, 0.12)",
+                                        background: "transparent",
+                                        color: action.disabled ? "#334155" : "#94a3b8",
+                                        fontSize: 16,
+                                        cursor: action.disabled ? "default" : "pointer",
+                                    }, children: action.label }, action.title))), _jsx("div", { style: { width: 1, background: "rgba(148, 163, 184, 0.15)", margin: "8px 0" } }), _jsxs("div", { style: {
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 7,
+                                        padding: "11px 16px",
+                                        color: saveStatusConfig.color,
                                         fontSize: 11,
-                                        fontWeight: 800,
-                                        letterSpacing: 0.3,
+                                        fontWeight: 700,
+                                        letterSpacing: 0.5,
+                                        textTransform: "uppercase",
+                                    }, children: [_jsx("span", { style: { width: 7, height: 7, borderRadius: "50%", background: saveStatusConfig.color, boxShadow: `0 0 8px ${saveStatusConfig.color}`, flexShrink: 0 } }), saveStatusConfig.label] }), _jsx("button", { type: "button", onClick: () => void commitPendingSave(), style: {
+                                        padding: "11px 16px",
+                                        border: "none",
+                                        borderLeft: "1px solid rgba(148, 163, 184, 0.12)",
+                                        background: "transparent",
+                                        color: "#64748b",
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        letterSpacing: 0.4,
                                         textTransform: "uppercase",
                                         cursor: "pointer",
                                     }, children: "Save now" })] }), sidebarOpen && (_jsx(NodeLibraryPanel, { top: overlayTop, offset: overlayPadding, width: SIDEBAR_WIDTH, maxHeight: libraryMaxHeight, searchTerm: searchTerm, onSearchChange: setSearchTerm, filters: categoryFilters, activeFilter: categoryFilter, onFilterSelect: (filter) => {
@@ -1606,9 +1676,9 @@ const Whiteboard = () => {
                                 cursor: "pointer",
                                 transition: "all 0.25s ease",
                                 zIndex: 16,
-                            }, children: sidebarOpen ? _jsx(FaChevronLeft, {}) : _jsx(FaChevronRight, {}) }), _jsx(ToolbarPanel, { top: overlayTop, right: overlayPadding, visible: !toolbarCollapsed && toolbarVisible, canUndo: activeHistory.past.length > 0, canRedo: activeHistory.future.length > 0, onUndo: undo, onRedo: redo, onDelete: deleteSelected, onHide: hideToolbar }), dashboardVisible && (_jsx(DashboardOverlay, { top: overlayTop, left: dashboardLeftOffset, right: dashboardRightOffset, cards: dashboardCards })), inspectorOpen && (_jsx(InspectorPanel, { top: overlayTop, right: overlayPadding, width: inspectorWidth, maxHeight: inspectorMaxHeight, activeNode: activeNode, activeEdge: activeEdge, onClose: () => {
+                            }, children: sidebarOpen ? _jsx(FaChevronLeft, {}) : _jsx(FaChevronRight, {}) }), dashboardVisible && (_jsx(DashboardOverlay, { top: overlayTop, left: dashboardLeftOffset, right: dashboardRightOffset, cards: dashboardCards })), inspectorOpen && (_jsx(InspectorPanel, { top: overlayTop, right: overlayPadding, width: inspectorWidth, maxHeight: inspectorMaxHeight, activeNode: activeNode, activeEdge: activeEdge, onClose: () => {
                                 setActiveEdgeId(null);
                                 setActiveNodeId(null);
-                            }, onMetaChange: handleNodeMetaChange, onSustainabilityChange: handleSustainabilityChange, edgeThemes: edgeLibrary, onVariantSelect: handleEdgeVariantSelect, defaultVariant: DEFAULT_EDGE_VARIANT, metaFields: nodeMetaFields }))] })) : (_jsx(AnalyticsPanel, { cards: dashboardCards, valueBreakdown: valueBreakdown, timeMetrics: timeMetrics, cycleTimeTrend: cycleTimeTrend, wipCapacity: wipCapacitySnapshot, costBreakdown: costBreakdown, sustainabilityDashboard: sustainabilityDashboard, categoryBreakdown: categoryBreakdown, summary: summaryInsights, alerts: insightAlerts, onExportMap: handleExportMap, onImportMap: handleImportMap, onExportDashboards: handleExportDashboards })) }), _jsx(EmissionWizard, { open: emissionWizardOpen, stage: emissionWizardStage, defaults: emissionDefaults, onAcceptTracking: handleEmissionWizardAccept, onSkip: handleEmissionWizardSkip, onSubmit: handleEmissionWizardSubmit, onClose: handleEmissionWizardClose })] }));
+                            }, onMetaChange: handleNodeMetaChange, onSustainabilityChange: handleSustainabilityChange, edgeThemes: edgeLibrary, onVariantSelect: handleEdgeVariantSelect, defaultVariant: DEFAULT_EDGE_VARIANT, metaFields: nodeMetaFields }))] })) : (_jsx(AnalyticsPanel, { cards: dashboardCards, valueBreakdown: valueBreakdown, timeMetrics: timeMetrics, cycleTimeTrend: cycleTimeTrend, wipCapacity: wipCapacitySnapshot, costBreakdown: costBreakdown, sustainabilityDashboard: sustainabilityDashboard, categoryBreakdown: categoryBreakdown, summary: summaryInsights, alerts: insightAlerts, onExportMap: handleExportMap, onImportMap: handleImportMap, onExportDashboards: handleExportDashboards })) }), quickFillOpen && (_jsx(QuickFillModal, { nodes: nodes, onUpdate: handleQuickFillUpdate, onClose: () => setQuickFillOpen(false) })), _jsx(EmissionWizard, { open: emissionWizardOpen, stage: emissionWizardStage, defaults: emissionDefaults, onAcceptTracking: handleEmissionWizardAccept, onSkip: handleEmissionWizardSkip, onSubmit: handleEmissionWizardSubmit, onClose: handleEmissionWizardClose })] }));
 };
 export default Whiteboard;
