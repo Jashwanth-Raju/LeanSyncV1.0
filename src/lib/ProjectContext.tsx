@@ -125,8 +125,7 @@ export const ProjectProvider = ({ userId, children }: ProjectProviderProps) => {
         (error) => {
           console.error("Project listener error", error);
           if (!cancelled) {
-            const msg = error instanceof Error ? error.message : String(error);
-            setProjectsError(`Firestore error: ${msg}`);
+              setProjectsError("Unable to load projects.");
             setProjectsLoading(false);
           }
         }
