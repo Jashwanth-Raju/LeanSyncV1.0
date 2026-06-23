@@ -8,7 +8,6 @@ import {
   doc,
   getDoc,
   onSnapshot,
-  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -36,6 +35,7 @@ interface ProjectContextValue {
   userId: string | null;
   selectedProjectId: string | null;
   selectedProfile: string;
+  selectedProjectName: string;
   selectProject: (projectId: string) => void;
   clearProject: () => void;
   projects: ProjectRecord[];
@@ -99,15 +99,21 @@ export const ProjectProvider = ({ userId, children }: ProjectProviderProps) => {
       }
 
       const projectsRef = collection(db, "projects");
-      const projectsQuery = query(projectsRef, where("memberIds", "array-contains", userId), orderBy("updatedAt", "desc"));
+      const projectsQuery = query(projectsRef, where("memberIds", "array-contains", userId));
       unsubscribe = onSnapshot(
         projectsQuery,
         (snapshot) => {
-          const nextProjects = snapshot.docs.map((docSnap) => {
-            const data = docSnap.data() as Omit<ProjectRecord, "id">;
-            const industryProfile = (data.industryProfile as string) ?? "manufacturing";
-            return { id: docSnap.id, ...data, industryProfile };
-          });
+          const nextProjects = snapshot.docs
+            .map((docSnap) => {
+              const data = docSnap.data() as Omit<ProjectRecord, "id">;
+              const industryProfile = (data.industryProfile as string) ?? "manufacturing";
+              return { id: docSnap.id, ...data, industryProfile };
+            })
+            .sort((a, b) => {
+              const aTime = a.updatedAt && typeof a.updatedAt === "object" && "seconds" in (a.updatedAt as { seconds: number }) ? (a.updatedAt as { seconds: number }).seconds : 0;
+              const bTime = b.updatedAt && typeof b.updatedAt === "object" && "seconds" in (b.updatedAt as { seconds: number }) ? (b.updatedAt as { seconds: number }).seconds : 0;
+              return bTime - aTime;
+            });
           if (!cancelled) {
             setProjects(nextProjects);
             setProjectsLoading(false);
@@ -256,10 +262,16 @@ export const ProjectProvider = ({ userId, children }: ProjectProviderProps) => {
     return match?.industryProfile ?? "manufacturing";
   }, [projects, selectedProjectId]);
 
+  const selectedProjectName = useMemo(() => {
+    const match = projects.find((proj) => proj.id === selectedProjectId);
+    return match?.name ?? "";
+  }, [projects, selectedProjectId]);
+
   const value: ProjectContextValue = {
     userId,
     selectedProjectId,
     selectedProfile,
+    selectedProjectName,
     selectProject,
     clearProject,
     projects,

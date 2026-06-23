@@ -81,8 +81,8 @@ import type { ScenarioKey, HistorySnapshotStore } from "./whiteboard/scenarios";
 import { withEmissionDefaults } from "./whiteboard/persistence";
 
 const Whiteboard: React.FC = () => {
-  const { selectedProjectId, projects } = useProject();
-  const projectName = projects.find((p) => p.id === selectedProjectId)?.name ?? "LeanSync";
+  const { selectedProjectId, selectedProjectName } = useProject();
+  const projectName = selectedProjectName || "LeanSync";
   const [nodes, setNodes, rfOnNodesChange] = useNodesState<WhiteboardNodeData>(
     initialNodes.map(cloneNode)
   );

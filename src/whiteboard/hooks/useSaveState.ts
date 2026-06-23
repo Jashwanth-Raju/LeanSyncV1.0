@@ -139,8 +139,7 @@ export const useSaveState = (options: UseSaveStateOptions) => {
             },
           };
           const savedActiveScenario = saved?.activeScenario ?? "current";
-          const nextActiveScenario =
-            nextScenarios[savedActiveScenario].nodes.length > 0 ? savedActiveScenario : "current";
+          const nextActiveScenario = savedActiveScenario;
           scenarioStoreRef.current = nextScenarios;
           scenarioHistoryRef.current = {
             current: getHistory(),

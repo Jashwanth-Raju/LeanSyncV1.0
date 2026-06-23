@@ -215,7 +215,11 @@ export const NodeLibraryPanel: React.FC<NodeLibraryPanelProps> = ({
               key={libraryNode.label}
               role="button"
               draggable
-              onDragStart={(event) => onDragStart(event, libraryNode)}
+              onDragStart={(event) => {
+                const el = event.currentTarget as HTMLElement;
+                event.dataTransfer.setDragImage(el, el.offsetWidth / 2, 24);
+                onDragStart(event, libraryNode);
+              }}
               style={{
                 padding: "18px 20px",
                 borderRadius: 20,
