@@ -8,7 +8,6 @@ import {
   doc,
   getDoc,
   onSnapshot,
-  or,
   query,
   serverTimestamp,
   setDoc,
@@ -102,10 +101,7 @@ export const ProjectProvider = ({ userId, children }: ProjectProviderProps) => {
       const projectsRef = collection(db, "projects");
       const projectsQuery = query(
         projectsRef,
-        or(
-          where("ownerId", "==", userId),
-          where("memberIds", "array-contains", userId)
-        )
+        where("ownerId", "==", userId)
       );
       unsubscribe = onSnapshot(
         projectsQuery,
