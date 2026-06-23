@@ -8,7 +8,7 @@ import type { LibraryCategory } from "../types";
 
 type Props = {
   activeScenario: ScenarioKey;
-  setActiveScenario: Dispatch<SetStateAction<ScenarioKey>>;
+  setActiveScenario: (key: ScenarioKey) => void;
   cloneScenario: (from: ScenarioKey, to: ScenarioKey) => void;
   resetScenario: (key: ScenarioKey) => void;
   dashboardVisible: boolean;
