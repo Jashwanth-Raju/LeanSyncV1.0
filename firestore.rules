@@ -2,27 +2,25 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isProjectMember(project) {
+    function isMember(data) {
       return request.auth != null
         && (
-          request.auth.uid == project.ownerId
-          || request.auth.uid in project.memberIds
+          request.auth.uid == data.ownerId
+          || (data.memberIds is list && request.auth.uid in data.memberIds)
         );
     }
 
     match /projects/{projectId} {
-      allow read, update, delete: if isProjectMember(resource.data)
-        || isProjectMember(request.resource.data);
+      allow read: if isMember(resource.data);
 
       allow create: if request.auth != null
-        && (
-          request.auth.uid == request.resource.data.ownerId
-          || request.auth.uid in request.resource.data.memberIds
-        );
+        && request.auth.uid == request.resource.data.ownerId;
+
+      allow update, delete: if isMember(resource.data);
     }
 
     match /projects/{projectId}/{subcollection}/{documentId} {
-      allow read, write: if isProjectMember(
+      allow read, write: if isMember(
         get(/databases/$(database)/documents/projects/$(projectId)).data
       );
     }

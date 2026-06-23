@@ -519,6 +519,7 @@ const Whiteboard: React.FC = () => {
         edges: edges.map(cloneEdge),
       };
       isSwitchingScenarioRef.current = true;
+      setEmissionWizardOpen(false);
       setActiveScenario(key);
     },
     [activeScenario, nodes, edges]

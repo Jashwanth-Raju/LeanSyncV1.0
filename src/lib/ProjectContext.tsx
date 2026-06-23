@@ -101,7 +101,7 @@ export const ProjectProvider = ({ userId, children }: ProjectProviderProps) => {
       const projectsRef = collection(db, "projects");
       const projectsQuery = query(
         projectsRef,
-        where("ownerId", "==", userId)
+        where("memberIds", "array-contains", userId)
       );
       unsubscribe = onSnapshot(
         projectsQuery,
@@ -125,7 +125,8 @@ export const ProjectProvider = ({ userId, children }: ProjectProviderProps) => {
         (error) => {
           console.error("Project listener error", error);
           if (!cancelled) {
-            setProjectsError("Unable to load projects.");
+            const msg = error instanceof Error ? error.message : String(error);
+            setProjectsError(`Firestore error: ${msg}`);
             setProjectsLoading(false);
           }
         }
