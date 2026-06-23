@@ -504,6 +504,22 @@ const Whiteboard: React.FC = () => {
     [applyScenarioState, activeScenario]
   );
 
+  const handleSwitchScenario = useCallback(
+    (key: ScenarioKey) => {
+      if (key === activeScenario) return;
+      // Save current nodes/edges into the store BEFORE React re-renders with the new
+      // activeScenario value. Without this, the sync effects fire with the new scenario
+      // key but the old nodes, overwriting the target scenario's data.
+      scenarioStoreRef.current[activeScenario] = {
+        nodes: nodes.map(cloneNode),
+        edges: edges.map(cloneEdge),
+      };
+      isSwitchingScenarioRef.current = true;
+      setActiveScenario(key);
+    },
+    [activeScenario, nodes, edges]
+  );
+
   const pushSnapshot = useCallback(
     (snapshot?: HistorySnapshot) => {
       const history = scenarioHistoryRef.current[activeScenario];
@@ -958,7 +974,7 @@ const Whiteboard: React.FC = () => {
     >
       <WhiteboardHeader
         activeScenario={activeScenario}
-        setActiveScenario={setActiveScenario}
+        setActiveScenario={handleSwitchScenario}
         cloneScenario={cloneScenario}
         resetScenario={resetScenario}
         dashboardVisible={dashboardVisible}
