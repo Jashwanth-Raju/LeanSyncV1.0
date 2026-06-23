@@ -546,6 +546,7 @@ const Whiteboard: React.FC = () => {
   }, [edges, activeEdgeId]);
 
   useEffect(() => {
+    if (activeScenario !== "current") return;
     const scenarioState = scenarioStoreRef.current[activeScenario];
     if (
       scenarioState &&
