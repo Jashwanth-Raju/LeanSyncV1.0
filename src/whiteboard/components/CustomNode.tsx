@@ -87,10 +87,10 @@ export const CustomNode: React.FC<Props> = ({
         textShadow: showCO2Layer ? "none" : "0 1px 2px rgba(15, 23, 42, 0.35)",
       }}
     >
-      <Handle type="target" position={Position.Top} id="t" style={{ background: "#555" }} />
-      <Handle type="target" position={Position.Bottom} id="b" style={{ background: "#555" }} />
-      <Handle type="target" position={Position.Left} id="l" style={{ background: "#555" }} />
-      <Handle type="target" position={Position.Right} id="r" style={{ background: "#555" }} />
+      <Handle type="target" position={Position.Top} id="t" style={{ background: "#6366f1", width: 12, height: 12, border: "2px solid #e0e7ff" }} />
+      <Handle type="target" position={Position.Bottom} id="b" style={{ background: "#6366f1", width: 12, height: 12, border: "2px solid #e0e7ff" }} />
+      <Handle type="target" position={Position.Left} id="l" style={{ background: "#6366f1", width: 12, height: 12, border: "2px solid #e0e7ff" }} />
+      <Handle type="target" position={Position.Right} id="r" style={{ background: "#6366f1", width: 12, height: 12, border: "2px solid #e0e7ff" }} />
       <div style={{ width: 28, marginRight: 10, color: textColor }}>
         {iconMap[data.icon]}
       </div>
@@ -145,10 +145,10 @@ export const CustomNode: React.FC<Props> = ({
           </div>
         )}
       </div>
-      <Handle type="source" position={Position.Top} id="st" style={{ background: "#555" }} />
-      <Handle type="source" position={Position.Bottom} id="sb" style={{ background: "#555" }} />
-      <Handle type="source" position={Position.Left} id="sl" style={{ background: "#555" }} />
-      <Handle type="source" position={Position.Right} id="sr" style={{ background: "#555" }} />
+      <Handle type="source" position={Position.Top} id="st" style={{ background: "#10b981", width: 12, height: 12, border: "2px solid #d1fae5" }} />
+      <Handle type="source" position={Position.Bottom} id="sb" style={{ background: "#10b981", width: 12, height: 12, border: "2px solid #d1fae5" }} />
+      <Handle type="source" position={Position.Left} id="sl" style={{ background: "#10b981", width: 12, height: 12, border: "2px solid #d1fae5" }} />
+      <Handle type="source" position={Position.Right} id="sr" style={{ background: "#10b981", width: 12, height: 12, border: "2px solid #d1fae5" }} />
       <SustainabilityBadge
         sustainability={data.sustainability}
         onClick={(event) => {

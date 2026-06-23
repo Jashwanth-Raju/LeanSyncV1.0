@@ -7,6 +7,7 @@ import type { ScenarioKey } from "../scenarios";
 import type { LibraryCategory } from "../types";
 
 type Props = {
+  projectName: string;
   activeScenario: ScenarioKey;
   setActiveScenario: (key: ScenarioKey) => void;
   cloneScenario: (from: ScenarioKey, to: ScenarioKey) => void;
@@ -18,10 +19,12 @@ type Props = {
   drawerCategory: LibraryCategory | null;
   setDrawerCategory: Dispatch<SetStateAction<LibraryCategory | null>>;
   onQuickFill: () => void;
+  onValueClassify: () => void;
   onExportMap: () => void;
 };
 
 export const WhiteboardHeader: React.FC<Props> = ({
+  projectName,
   activeScenario,
   setActiveScenario,
   cloneScenario,
@@ -33,6 +36,7 @@ export const WhiteboardHeader: React.FC<Props> = ({
   drawerCategory,
   setDrawerCategory,
   onQuickFill,
+  onValueClassify,
   onExportMap,
 }) => {
   const scenarioMeta = SCENARIO_META[activeScenario];
@@ -80,7 +84,7 @@ export const WhiteboardHeader: React.FC<Props> = ({
               boxShadow: "0 0 6px rgba(59, 130, 246, 0.6)",
             }}
           />
-          <span>LeanSync</span>
+          <span style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{projectName}</span>
         </div>
 
         <span style={{ fontSize: 12, color: scenarioMeta.color, fontWeight: 600, letterSpacing: 0.2 }}>
@@ -185,6 +189,22 @@ export const WhiteboardHeader: React.FC<Props> = ({
       </div>
 
       <div style={{ display: "inline-flex", gap: 10, alignItems: "center" }}>
+        <button
+          type="button"
+          onClick={onValueClassify}
+          style={{
+            padding: "7px 14px",
+            borderRadius: 999,
+            border: "1px solid rgba(16,185,129,0.35)",
+            background: "rgba(16,185,129,0.12)",
+            color: "#6ee7b7",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Value Types
+        </button>
         <button
           type="button"
           onClick={onQuickFill}

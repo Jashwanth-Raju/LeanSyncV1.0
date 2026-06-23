@@ -349,6 +349,22 @@ export const nodeLibrary: LibraryCategory[] = [
       },
     ],
   },
+  {
+    category: "Custom",
+    description: "Create your own process step. Drag it to the canvas, then rename it in the inspector.",
+    accent: "#8b5cf6",
+    nodes: [
+      {
+        label: "Custom Node",
+        icon: "manufacturing",
+        color: "#8b5cf6",
+        badge: "Custom",
+        tagline: "Rename in inspector",
+        category: "Custom",
+        valueType: "enabler",
+      },
+    ],
+  },
 ];
 
 export const edgeLibrary: EdgeTheme[] = [
@@ -451,11 +467,11 @@ export const TAB_BAR_HEIGHT = 56;
 export const CANVAS_TOP_OFFSET = TAB_BAR_HEIGHT + 20;
 
 export const nodeMetaFields: NodeMetaField[] = [
-  { key: "processTime", label: "Process Time", placeholder: "e.g. 45 sec" },
-  { key: "cycleTime", label: "Cycle Time", placeholder: "e.g. 55 sec" },
-  { key: "taktTime", label: "Takt Time", placeholder: "e.g. 60 sec" },
-  { key: "setupTime", label: "Setup Time", placeholder: "e.g. 12 min" },
-  { key: "leadTime", label: "Lead Time", placeholder: "e.g. 2 days" },
+  { key: "processTime", label: "Process Time", isTime: true },
+  { key: "cycleTime", label: "Cycle Time", isTime: true },
+  { key: "taktTime", label: "Takt Time", isTime: true },
+  { key: "setupTime", label: "Setup Time", isTime: true },
+  { key: "leadTime", label: "Lead Time", isTime: true },
   { key: "wip", label: "Current WIP", placeholder: "e.g. 12 units" },
   { key: "capacity", label: "Daily Capacity", placeholder: "Units/day" },
   { key: "oeeAvailability", label: "OEE — Availability %", placeholder: "e.g. 85" },

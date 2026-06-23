@@ -46,6 +46,23 @@ const TABS: { id: "times" | "flow" | "other"; label: string; keys: string[] }[] 
   },
 ];
 
+type TimeUnit = "sec" | "min" | "hr" | "day";
+
+function parseTimeInput(raw: string): { number: string; unit: TimeUnit } {
+  if (!raw) return { number: "", unit: "min" };
+  const match = raw.trim().match(/^(\d+(?:\.\d+)?)\s*(s|sec|seconds?|m|min|mins?|minutes?|h|hr|hrs?|hours?|d|day|days?)$/i);
+  if (!match) return { number: raw, unit: "min" };
+  const unit = match[2].toLowerCase();
+  if (/^(s|sec|seconds?)$/.test(unit)) return { number: match[1], unit: "sec" };
+  if (/^(h|hr|hrs?|hours?)$/.test(unit)) return { number: match[1], unit: "hr" };
+  if (/^(d|day|days?)$/.test(unit)) return { number: match[1], unit: "day" };
+  return { number: match[1], unit: "min" };
+}
+
+function buildTimeValue(number: string, unit: TimeUnit): string {
+  return number ? `${number}${unit}` : "";
+}
+
 const inputStyle: React.CSSProperties = {
   borderRadius: 10,
   border: "1px solid rgba(148, 163, 184, 0.35)",
@@ -102,13 +119,32 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     >
       {/* Header */}
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0, marginRight: 8 }}>
           <span style={{ fontSize: 11, letterSpacing: 1.4, textTransform: "uppercase", color: "#64748b" }}>
-            Inspector
+            {activeNode ? "Node name" : "Inspector"}
           </span>
-          <strong style={{ fontSize: 16, lineHeight: 1.2 }}>
-            {activeNode?.data.label ?? (activeEdge ? "Connection" : "Selection")}
-          </strong>
+          {activeNode ? (
+            <input
+              type="text"
+              value={activeNode.data.label}
+              onChange={(e) => onMetaChange("label", e.target.value)}
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                background: "transparent",
+                border: "none",
+                borderBottom: "1px solid rgba(148, 163, 184, 0.35)",
+                color: "#f8fafc",
+                outline: "none",
+                padding: "2px 0",
+                width: "100%",
+              }}
+            />
+          ) : (
+            <strong style={{ fontSize: 16, lineHeight: 1.2 }}>
+              {activeEdge ? "Connection" : "Selection"}
+            </strong>
+          )}
         </div>
         <button
           onClick={onClose}
@@ -176,7 +212,35 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 12 }}
             >
               <span style={{ color: "#94a3b8", letterSpacing: 0.3 }}>{field.label}</span>
-              {field.multiline ? (
+              {field.isTime ? (
+                (() => {
+                  const raw = String(activeNode.data[field.key] ?? "");
+                  const { number, unit } = parseTimeInput(raw);
+                  return (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={number}
+                        onChange={(e) => onMetaChange(field.key, buildTimeValue(e.target.value, unit))}
+                        placeholder="0"
+                        style={{ ...inputStyle, flex: 1 }}
+                      />
+                      <select
+                        value={unit}
+                        onChange={(e) => onMetaChange(field.key, buildTimeValue(number, e.target.value as TimeUnit))}
+                        style={{ ...inputStyle, width: 100, padding: "8px 6px" }}
+                      >
+                        <option value="sec">Seconds</option>
+                        <option value="min">Minutes</option>
+                        <option value="hr">Hours</option>
+                        <option value="day">Days</option>
+                      </select>
+                    </div>
+                  );
+                })()
+              ) : field.multiline ? (
                 <textarea
                   value={String(activeNode.data[field.key] ?? "")}
                   onChange={(e) => onMetaChange(field.key, e.target.value)}

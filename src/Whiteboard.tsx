@@ -50,6 +50,7 @@ import type {
   HistorySnapshot,
   LibraryCategory,
   LibraryNode,
+  ValueType,
   WhiteboardEdgeData,
   WhiteboardNodeData,
   EmissionFactorDefaults,
@@ -66,6 +67,7 @@ import { WhiteboardHeader } from "./whiteboard/components/WhiteboardHeader";
 import { co2ColorScale, computeNodeCO2, parseCO2Numeric } from "./whiteboard/utils/co2";
 import { EmissionWizard, type EmissionWizardStage } from "./whiteboard/components/EmissionWizard";
 import { QuickFillModal } from "./whiteboard/components/QuickFillModal";
+import { ValueTypeModal } from "./whiteboard/components/ValueTypeModal";
 import { exportToPdf } from "./whiteboard/utils/exportPdf";
 import { useProject } from "./lib/ProjectContext";
 import { useSaveState } from "./whiteboard/hooks/useSaveState";
@@ -79,7 +81,8 @@ import type { ScenarioKey, HistorySnapshotStore } from "./whiteboard/scenarios";
 import { withEmissionDefaults } from "./whiteboard/persistence";
 
 const Whiteboard: React.FC = () => {
-  const { selectedProjectId } = useProject();
+  const { selectedProjectId, projects } = useProject();
+  const projectName = projects.find((p) => p.id === selectedProjectId)?.name ?? "LeanSync";
   const [nodes, setNodes, rfOnNodesChange] = useNodesState<WhiteboardNodeData>(
     initialNodes.map(cloneNode)
   );
@@ -102,6 +105,7 @@ const Whiteboard: React.FC = () => {
   const [isCo2TrackingEnabled, setIsCo2TrackingEnabled] = useState(false);
   const [emissionWizardOpen, setEmissionWizardOpen] = useState(false);
   const [quickFillOpen, setQuickFillOpen] = useState(false);
+  const [valueTypeModalOpen, setValueTypeModalOpen] = useState(false);
   const [emissionWizardStage, setEmissionWizardStage] =
     useState<EmissionWizardStage>("prompt");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
@@ -835,6 +839,17 @@ const Whiteboard: React.FC = () => {
     event.dataTransfer.dropEffect = "move";
   }, []);
 
+  const handleValueTypeUpdate = useCallback(
+    (nodeId: string, valueType: ValueType) => {
+      setNodes((nds) =>
+        nds.map((node) =>
+          node.id === nodeId ? { ...node, data: { ...node.data, valueType } } : node
+        )
+      );
+    },
+    [setNodes]
+  );
+
   const handleQuickFillUpdate = useCallback(
     (nodeId: string, key: keyof WhiteboardNodeData, value: string) => {
       setNodes((nds) =>
@@ -973,6 +988,7 @@ const Whiteboard: React.FC = () => {
       }}
     >
       <WhiteboardHeader
+        projectName={projectName}
         activeScenario={activeScenario}
         setActiveScenario={handleSwitchScenario}
         cloneScenario={cloneScenario}
@@ -984,6 +1000,7 @@ const Whiteboard: React.FC = () => {
         drawerCategory={drawerCategory}
         setDrawerCategory={setDrawerCategory}
         onQuickFill={() => setQuickFillOpen(true)}
+        onValueClassify={() => setValueTypeModalOpen(true)}
         onExportMap={() => void handleExportMap()}
       />
 
@@ -1013,6 +1030,7 @@ const Whiteboard: React.FC = () => {
           fitView
           snapToGrid
           snapGrid={[20, 20]}
+          connectionRadius={50}
           connectionLineType={ConnectionLineType.SmoothStep}
           defaultEdgeOptions={{
             markerEnd: { type: MarkerType.ArrowClosed },
@@ -1257,6 +1275,13 @@ const Whiteboard: React.FC = () => {
           nodes={nodes}
           onUpdate={handleQuickFillUpdate}
           onClose={() => setQuickFillOpen(false)}
+        />
+      )}
+      {valueTypeModalOpen && (
+        <ValueTypeModal
+          nodes={nodes}
+          onUpdate={handleValueTypeUpdate}
+          onClose={() => setValueTypeModalOpen(false)}
         />
       )}
       <EmissionWizard
